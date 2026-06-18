@@ -15,7 +15,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     
     <!-- Babel -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
 
     <!-- html2pdf.js untuk muat turun PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -89,7 +89,7 @@
         // =========================================================================
         // URL WEB APP GOOGLE APPS SCRIPT CIKGU
         // =========================================================================
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbyOIUijiIgbf4YbpdvQv-gBZwXzMNvZLo5EkQlG1W9eVgJNo4gCTxNZa2vJT_q-0xsyfQ/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbz95f8JTZG8cdUQEzP-n5_ZS7D-qd9LeadOfzlEAqn9QxCAEA3b9XXSkNzF9yYLcyLxEQ/exec";
         
         const { useState, useEffect, useMemo } = React;
 
@@ -115,7 +115,7 @@
             return { grade: 'F', desc: 'BELUM MENCAPAI TAHAP', color: 'bg-red-600 text-white' };
         };
 
-        const TP_OPTIONS = ["TP 1", "TP 2", "TP 3", "TP 4", "TP 5", "TP 6", "BELUM MENGUASAI", "MENGUASAI", "MENGUASAI DENGAN BIMBINGAN", "/", "X"];
+        const TP_OPTIONS = ["TP 1", "TP 2", "TP 3", "TP 4", "TP 5", "TP 6", "BELUM MENGUASAI", "MENGUASAI", "MENGUASAI DENGAN BIMBINGAN", "PEMULIHAN", "TH", "/", "X"];
 
         const Toast = ({ message, type, onClose }) => {
             useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
@@ -381,11 +381,11 @@
                 );
             }
 
-            const [mod, setMod] = useState('SP'); // 'SP', 'SK', 'PPT', 'PAT'
+            const [mod, setMod] = useState('SP');
             const [formData, setFormData] = useState({
                 tarikh: getMYDate(), subjek: config.subjects[0] || '', kelas: config.classes[0] || '',
                 stdKandungan: '', stdPembelajaran: '', kemahiran: '', selectedSyllabusId: '',
-                selectedSKs: [] // Array untuk pilihan multi-SK
+                selectedSKs: []
             });
             const [results, setResults] = useState({});
             const [isSaving, setIsSaving] = useState(false);
@@ -445,9 +445,7 @@
                         return { studentId: id, studentName: student ? student.name : 'Unknown', tp: results[id] || 'Belum Dinilai' };
                     });
 
-                    const recordId = Date.now().toString(); // Generate ID for editing later
                     const newRecord = { 
-                        id: recordId,
                         ...formData, stdKandungan: finalKandungan, stdPembelajaran: finalPembelajaran, kemahiran: finalKemahiran,
                         results: detailedResults, createdAt: new Date().toISOString(), createdBy: user.name 
                     };
@@ -459,6 +457,7 @@
                     const resData = await response.json();
                     
                     if(resData.success) {
+                        newRecord.id = resData.id;
                         showToast('Rekod berjaya disimpan!', 'success');
                         onRecordAdded(newRecord);
                         setFormData(prev => ({ ...prev, stdKandungan: '', stdPembelajaran: '', kemahiran: '', selectedSyllabusId: '', selectedSKs: [] }));
@@ -479,7 +478,6 @@
                         </div>
                     </div>
                     
-                    {/* Mode Selector */}
                     <div className="mb-8">
                         <label className="block text-sm font-extrabold text-gray-800 mb-3 uppercase tracking-wider">Pilih Mod Perekodan:</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -548,11 +546,6 @@
                                             </label>
                                         )) : <p className="text-gray-400 italic text-sm">Tiada senarai SK. Sila daftar di Pengurusan Data.</p>}
                                     </div>
-                                    {formData.selectedSKs.length > 0 && (
-                                        <div className="mt-4 p-3 bg-teal-100 rounded-lg text-sm text-teal-800 font-bold border border-teal-200">
-                                            <i className="fas fa-info-circle mr-1"></i> {formData.selectedSKs.length} SK telah dipilih.
-                                        </div>
-                                    )}
                                 </div>
                             )}
 
@@ -641,9 +634,7 @@
                         return { studentId: id, studentName: student ? student.name : 'Unknown', tp: tpValue };
                     });
 
-                    const recordId = Date.now().toString(); // Generate ID for editing later
                     const newRecord = { 
-                        id: recordId,
                         tarikh: formData.tarikh, subjek: formData.subjek, kelas: formData.kelas,
                         stdKandungan: 'MARKAH UJIAN', stdPembelajaran: formData.namaUjian, kemahiran: '-',
                         results: detailedResults, createdAt: new Date().toISOString(), createdBy: user.name 
@@ -656,6 +647,7 @@
                     const resData = await response.json();
                     
                     if(resData.success) {
+                        newRecord.id = resData.id;
                         showToast('Markah Sumatif berjaya disimpan!', 'success');
                         onRecordAdded(newRecord);
                     } else throw new Error(resData.error || "Ralat Pelayan Google Sheets");
@@ -760,194 +752,168 @@
             );
         };
 
-        const SenaraiRekod = ({ records, config, user, showToast, onRecordUpdated, onRecordDeleted }) => {
-            const [editingRecord, setEditingRecord] = useState(null);
-            const [deletingRecord, setDeletingRecord] = useState(null);
+        const SenaraiRekod = ({ records, config, onRecordUpdated, onRecordDeleted, showToast }) => {
+            const [filterClass, setFilterClass] = useState(config.classes[0] || '');
+            const [filterSubject, setFilterSubject] = useState(config.subjects[0] || '');
+            const [isEditing, setIsEditing] = useState(null);
             const [editResults, setEditResults] = useState({});
-            const [editDate, setEditDate] = useState('');
-            const [isProcessing, setIsProcessing] = useState(false);
+            const [isSaving, setIsSaving] = useState(false);
 
-            const openEdit = (rec) => {
-                setEditingRecord(rec);
-                setEditDate(rec.tarikh);
-                const initialRes = {};
-                rec.results.forEach(r => {
-                    if(rec.stdKandungan === 'MARKAH UJIAN') {
-                        initialRes[r.studentId] = r.tp.split('%')[0]; // Ekstrak hanya markah nombor
-                    } else {
-                        initialRes[r.studentId] = r.tp;
+            const filteredRecords = records.filter(r => r.kelas === filterClass && r.subjek === filterSubject).sort((a, b) => new Date(b.tarikh) - new Date(a.tarikh));
+
+            const handleDelete = async (id) => {
+                if(!window.confirm("Adakah anda pasti untuk memadam rekod ini secara kekal?")) return;
+                try {
+                    const response = await fetch(GAS_URL, {
+                        method: 'POST', body: JSON.stringify({ action: 'deleteAssessment', id: id })
+                    });
+                    const resData = await response.json();
+                    if(resData.success) {
+                        showToast('Rekod berjaya dipadam', 'success');
+                        onRecordDeleted(id);
+                    } else throw new Error(resData.error);
+                } catch(e) { showToast('Ralat memadam: ' + e.message, 'error'); }
+            };
+
+            const openEdit = (record) => {
+                const resultsMap = {};
+                record.results.forEach(res => {
+                    let val = res.tp;
+                    if(record.stdKandungan === 'MARKAH UJIAN' && val.includes('%')) {
+                        val = val.split('%')[0];
                     }
+                    resultsMap[res.studentId] = val === 'Belum Dinilai' ? '' : val;
                 });
-                setEditResults(initialRes);
+                setEditResults(resultsMap);
+                setIsEditing({ ...record });
             };
 
             const handleSaveEdit = async () => {
-                setIsProcessing(true);
+                setIsSaving(true);
                 try {
-                    const studentsData = config.students[editingRecord.kelas] || [];
-                    const detailedResults = Object.keys(editResults).map(id => {
-                        const student = studentsData.find(s => s.id === id);
-                        let tpValue = editResults[id] || 'Belum Dinilai';
+                    const studentsData = config.students[isEditing.kelas] || [];
+                    const detailedResults = Object.keys(editResults).map(studentId => {
+                        const student = studentsData.find(s => s.id === studentId);
+                        let tpValue = editResults[studentId] || 'Belum Dinilai';
                         
-                        if (editingRecord.stdKandungan === 'MARKAH UJIAN') {
-                            if (editResults[id] !== '') {
-                                const info = getGradeInfo(editResults[id]);
-                                tpValue = `${editResults[id]}% [${info.grade}]`;
-                            } else {
-                                tpValue = 'Belum Dinilai';
-                            }
+                        if(isEditing.stdKandungan === 'MARKAH UJIAN' && tpValue !== 'Belum Dinilai') {
+                            const info = getGradeInfo(tpValue);
+                            tpValue = `${tpValue}% [${info.grade}]`;
                         }
-
-                        return { studentId: id, studentName: student ? student.name : 'Unknown', tp: tpValue };
+                        return { studentId, studentName: student ? student.name : 'Unknown', tp: tpValue };
                     });
 
-                    const updatedRec = { ...editingRecord, tarikh: editDate, results: detailedResults };
-
-                    const response = await fetch(GAS_URL, {
-                        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({ action: 'updateAssessment', id: editingRecord.id, assessment: updatedRec })
-                    });
-                    const resData = await response.json();
+                    const updatedRecord = { ...isEditing, results: detailedResults };
                     
-                    if(resData.success) {
-                        showToast('Rekod berjaya dikemas kini!', 'success');
-                        onRecordUpdated(updatedRec);
-                        setEditingRecord(null);
-                    } else throw new Error(resData.error || "Ralat Pelayan Apps Script");
-                } catch (err) { showToast('Ralat: ' + err.message, 'error'); }
-                finally { setIsProcessing(false); }
-            };
-
-            const handleDelete = async () => {
-                 setIsProcessing(true);
-                 try {
                     const response = await fetch(GAS_URL, {
-                        method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify({ action: 'deleteAssessment', id: deletingRecord.id })
+                        method: 'POST', body: JSON.stringify({ action: 'updateAssessment', id: isEditing.id, assessment: updatedRecord })
                     });
                     const resData = await response.json();
                     if(resData.success) {
-                        showToast('Rekod berjaya dipadam!', 'success');
-                        onRecordDeleted(deletingRecord.id);
-                        setDeletingRecord(null);
-                    } else throw new Error(resData.error || "Ralat Pelayan");
-                 } catch (err) { showToast('Ralat: ' + err.message, 'error'); }
-                 finally { setIsProcessing(false); }
+                        showToast('Rekod berjaya dikemas kini', 'success');
+                        onRecordUpdated(updatedRecord);
+                        setIsEditing(null);
+                    } else throw new Error(resData.error);
+                } catch(e) { showToast('Ralat kemas kini: ' + e.message, 'error'); }
+                finally { setIsSaving(false); }
             };
 
             return (
                 <div className="bg-white rounded-2xl shadow-soft border border-gray-100 p-8 fade-in relative">
-                    <div className="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6">
-                        <div className="bg-gradient-to-tr from-amber-500 to-orange-500 text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"><i className="fas fa-history text-xl"></i></div>
+                    <div className="flex items-center gap-4 mb-8 border-b border-gray-100 pb-6 mt-2">
+                        <div className="bg-gradient-to-tr from-purple-500 to-pink-500 text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"><i className="fas fa-list-ul text-xl"></i></div>
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800">Urus & Sunting Rekod</h2>
-                            <p className="text-gray-500 text-sm font-medium">Urus, kemas kini kesilapan atau padam rekod terdahulu.</p>
+                            <p className="text-gray-500 text-sm font-medium">Senarai semua rekod. Anda boleh menyunting atau memadam rekod di sini.</p>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm max-h-[60vh] overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-gray-50 text-gray-700 sticky top-0 z-10 shadow-sm">
-                                <tr>
-                                    <th className="py-3 px-4 font-bold text-sm border-b border-gray-200 w-28">Tarikh</th>
-                                    <th className="py-3 px-4 font-bold text-sm border-b border-gray-200">Kelas & Subjek</th>
-                                    <th className="py-3 px-4 font-bold text-sm border-b border-gray-200">Pentaksiran</th>
-                                    <th className="py-3 px-4 font-bold text-sm border-b border-gray-200 w-32 text-center">Tindakan</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {[...records].sort((a,b) => new Date(b.createdAt || b.tarikh) - new Date(a.createdAt || a.tarikh)).map(rec => (
-                                    <tr key={rec.id} className="hover:bg-amber-50/30 transition">
-                                        <td className="py-3 px-4 text-gray-600 font-bold">{formatMYDate(rec.tarikh)}</td>
-                                        <td className="py-3 px-4">
-                                            <div className="font-extrabold text-gray-800">{rec.kelas}</div>
-                                            <div className="text-xs text-gray-500 font-bold uppercase">{rec.subjek}</div>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <div className="font-bold text-gray-700 text-sm mb-1">{rec.stdKandungan === 'MARKAH UJIAN' ? <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-xs"><i className="fas fa-award"></i> UJIAN SUMATIF</span> : <span className="text-teal-600 bg-teal-50 px-2 py-0.5 rounded text-xs"><i className="fas fa-tasks"></i> PBD FORMATIF</span>}</div>
-                                            <div className="text-xs text-gray-600 truncate max-w-sm">{rec.stdKandungan} / {rec.stdPembelajaran}</div>
-                                        </td>
-                                        <td className="py-3 px-4 text-center">
-                                            <div className="flex justify-center gap-2">
-                                                <button onClick={() => openEdit(rec)} className="bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white p-2.5 rounded-lg transition border border-blue-200 hover:border-transparent shadow-sm" title="Sunting"><i className="fas fa-edit"></i></button>
-                                                <button onClick={() => setDeletingRecord(rec)} className="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white p-2.5 rounded-lg transition border border-red-200 hover:border-transparent shadow-sm" title="Padam"><i className="fas fa-trash"></i></button>
-                                            </div>
-                                        </td>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-purple-50/50 p-6 rounded-2xl border border-purple-100 shadow-inner">
+                        <div>
+                            <label className="block text-xs font-extrabold text-purple-800 mb-2 uppercase tracking-wider">Pilih Kelas</label>
+                            <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="w-full p-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 bg-white font-bold text-gray-800 outline-none shadow-sm">
+                                {config.classes.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-extrabold text-purple-800 mb-2 uppercase tracking-wider">Pilih Subjek</label>
+                            <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} className="w-full p-3 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 bg-white font-bold text-gray-800 outline-none shadow-sm">
+                                {config.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {!isEditing ? (
+                        <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-100 text-gray-700">
+                                        <th className="py-4 px-4 font-bold text-sm border-b border-gray-200 w-24">Tarikh</th>
+                                        <th className="py-4 px-4 font-bold text-sm border-b border-gray-200">Topik / Ujian</th>
+                                        <th className="py-4 px-4 font-bold text-sm border-b border-gray-200 w-32 text-center">Jenis</th>
+                                        <th className="py-4 px-4 font-bold text-sm border-b border-gray-200 w-32 text-center">Tindakan</th>
                                     </tr>
-                                ))}
-                                {records.length === 0 && <tr><td colSpan="4" className="py-12 text-center text-gray-400 font-bold italic"><i className="fas fa-inbox text-4xl mb-3 block text-gray-300"></i>Tiada rekod dijumpai.</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* MODAL SUNTING */}
-                    {editingRecord && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm fade-in">
-                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
-                                <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-gray-800"><i className="fas fa-edit text-blue-500 mr-2"></i> Sunting Keputusan Murid</h3>
-                                        <p className="text-xs text-gray-500 font-extrabold uppercase mt-1 tracking-wider bg-white px-2 py-1 rounded shadow-sm inline-block">{editingRecord.kelas} • {editingRecord.subjek}</p>
-                                    </div>
-                                    <button onClick={() => setEditingRecord(null)} className="text-gray-400 hover:text-red-500 transition text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50">&times;</button>
-                                </div>
-                                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar space-y-6 bg-white">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Ubah Tarikh Penilaian</label>
-                                        <input type="date" value={editDate} onChange={e=>setEditDate(e.target.value)} className="w-full md:w-1/3 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium shadow-sm" />
-                                    </div>
-                                    <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100">
-                                        <p className="text-xs text-blue-800 font-extrabold mb-1 uppercase tracking-wider">Kandungan Dinilai:</p>
-                                        <p className="text-sm font-bold text-gray-800 mb-1">{editingRecord.stdKandungan}</p>
-                                        <p className="text-sm font-bold text-blue-700">{editingRecord.stdPembelajaran}</p>
-                                    </div>
-
-                                    <table className="w-full text-left border-collapse border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                                        <thead className="bg-gray-100"><tr><th className="py-3 px-4 font-extrabold text-xs uppercase text-gray-600">Nama Murid</th><th className="py-3 px-4 font-extrabold text-xs uppercase text-gray-600 text-center w-64">{editingRecord.stdKandungan === 'MARKAH UJIAN' ? 'Markah (%)' : 'Tahap Penguasaan'}</th></tr></thead>
-                                        <tbody className="divide-y divide-gray-100">
-                                            {(config.students[editingRecord.kelas] || []).map(student => (
-                                                <tr key={student.id} className="hover:bg-blue-50/30 transition">
-                                                    <td className="py-3 px-4 text-sm font-bold text-gray-800">{student.name}</td>
-                                                    <td className="py-3 px-4">
-                                                        {editingRecord.stdKandungan === 'MARKAH UJIAN' ? (
-                                                            <div className="relative w-32 mx-auto">
-                                                                <input type="number" min="0" max="100" value={editResults[student.id] || ''} onChange={e => setEditResults(prev => ({...prev, [student.id]: e.target.value}))} className="w-full p-2.5 border-2 border-gray-300 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" />
-                                                            </div>
-                                                        ) : (
-                                                            <select value={editResults[student.id] || ''} onChange={e => setEditResults(prev => ({...prev, [student.id]: e.target.value}))} className="w-full p-2.5 border-2 border-gray-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
-                                                                <option value="" disabled>-- Pilih --</option>
-                                                                {TP_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                                                            </select>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                                    <button onClick={() => setEditingRecord(null)} className="px-6 py-3 rounded-xl font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 transition">Batal</button>
-                                    <button onClick={handleSaveEdit} disabled={isProcessing} className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg transform hover:-translate-y-0.5 transition flex items-center gap-2">
-                                        {isProcessing ? <i className="fas fa-spinner fa-spin text-xl"></i> : <i className="fas fa-save text-xl"></i>} Simpan Perubahan
-                                    </button>
-                                </div>
-                            </div>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 bg-white">
+                                    {filteredRecords.length > 0 ? filteredRecords.map(r => (
+                                        <tr key={r.id} className="hover:bg-purple-50/30 transition-colors">
+                                            <td className="py-3 px-4 text-sm font-semibold text-gray-600">{formatMYDate(r.tarikh)}</td>
+                                            <td className="py-3 px-4">
+                                                <div className="font-bold text-gray-800">{r.stdPembelajaran}</div>
+                                                <div className="text-xs text-gray-500">{r.stdKandungan}</div>
+                                            </td>
+                                            <td className="py-3 px-4 text-center">
+                                                <span className={`text-xs font-bold px-2 py-1 rounded ${r.stdKandungan === 'MARKAH UJIAN' ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700'}`}>
+                                                    {r.stdKandungan === 'MARKAH UJIAN' ? 'Sumatif' : 'Formatif'}
+                                                </span>
+                                            </td>
+                                            <td className="py-3 px-4 text-center space-x-2">
+                                                <button onClick={() => openEdit(r)} className="text-blue-500 hover:text-white hover:bg-blue-500 p-2 rounded-lg border border-transparent hover:border-blue-500 transition"><i className="fas fa-edit"></i></button>
+                                                <button onClick={() => handleDelete(r.id)} className="text-red-500 hover:text-white hover:bg-red-500 p-2 rounded-lg border border-transparent hover:border-red-500 transition"><i className="fas fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    )) : <tr><td colSpan="4" className="py-8 text-center text-gray-500 italic">Tiada rekod ditemui untuk kelas dan subjek ini.</td></tr>}
+                                </tbody>
+                            </table>
                         </div>
-                    )}
+                    ) : (
+                        <div className="bg-gray-50 p-6 rounded-xl border border-purple-200 shadow-inner">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-bold text-gray-800">Sunting Rekod: <span className="text-purple-600">{isEditing.stdPembelajaran}</span></h3>
+                                <button onClick={() => setIsEditing(null)} className="text-gray-500 hover:text-gray-800 font-bold"><i className="fas fa-times mr-1"></i> Batal</button>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                <div><label className="block text-xs font-bold text-gray-500 mb-1">Tarikh</label><input type="date" value={isEditing.tarikh} onChange={(e) => setIsEditing({...isEditing, tarikh: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-lg outline-none" /></div>
+                                <div><label className="block text-xs font-bold text-gray-500 mb-1">Topik/Ujian</label><input type="text" value={isEditing.stdPembelajaran} onChange={(e) => setIsEditing({...isEditing, stdPembelajaran: e.target.value})} className="w-full p-2.5 border border-gray-300 rounded-lg outline-none font-bold text-gray-800" /></div>
+                            </div>
 
-                    {/* MODAL PADAM */}
-                    {deletingRecord && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm fade-in">
-                            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center border border-gray-100">
-                                <div className="w-24 h-24 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner border-4 border-white outline outline-1 outline-red-100"><i className="fas fa-trash-alt text-4xl"></i></div>
-                                <h3 className="text-2xl font-black text-gray-800 mb-2">Padam Rekod Ini?</h3>
-                                <p className="text-gray-500 font-medium text-sm mb-8">Tindakan ini tidak boleh diundurkan. Semua data pentaksiran untuk sesi ini akan dibuang secara kekal.</p>
-                                <div className="flex gap-3 justify-center">
-                                    <button onClick={() => setDeletingRecord(null)} className="flex-1 px-4 py-3.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition border border-transparent">Batal</button>
-                                    <button onClick={handleDelete} disabled={isProcessing} className="flex-1 px-4 py-3.5 rounded-xl font-bold text-white bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-lg shadow-red-500/30 transform hover:-translate-y-0.5 transition flex items-center justify-center gap-2">
-                                        {isProcessing ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-exclamation-circle"></i> Ya, Padam</>}
-                                    </button>
-                                </div>
+                            <table className="w-full text-left bg-white rounded-lg overflow-hidden shadow-sm border border-gray-200 mb-6">
+                                <thead><tr className="bg-gray-100"><th className="py-3 px-4 font-bold text-sm">Nama Murid</th><th className="py-3 px-4 font-bold text-sm w-48 text-center">Pencapaian</th></tr></thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {config.students[isEditing.kelas] && config.students[isEditing.kelas].map(student => (
+                                        <tr key={student.id}>
+                                            <td className="py-2 px-4 font-bold text-sm text-gray-800">{student.name}</td>
+                                            <td className="py-2 px-4">
+                                                {isEditing.stdKandungan === 'MARKAH UJIAN' ? (
+                                                    <input type="number" min="0" max="100" placeholder="-" value={editResults[student.id] || ''} onChange={(e) => setEditResults({...editResults, [student.id]: e.target.value})} className="w-full p-2 text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-bold" />
+                                                ) : (
+                                                    <select value={editResults[student.id] || ''} onChange={(e) => setEditResults({...editResults, [student.id]: e.target.value})} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-bold text-sm">
+                                                        <option value="">-</option>
+                                                        {TP_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                    </select>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+
+                            <div className="flex justify-end gap-3">
+                                <button onClick={() => setIsEditing(null)} className="px-6 py-2.5 rounded-lg bg-white border border-gray-300 font-bold text-gray-600 hover:bg-gray-100">Batal</button>
+                                <button onClick={handleSaveEdit} disabled={isSaving} className="px-6 py-2.5 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center gap-2">
+                                    {isSaving ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>} Simpan Perubahan
+                                </button>
                             </div>
                         </div>
                     )}
@@ -958,17 +924,15 @@
         const DashboardAnalisis = ({ records, config }) => {
             const [filterClass, setFilterClass] = useState(config.classes[0] || '');
             const [filterSubject, setFilterSubject] = useState(config.subjects[0] || '');
-            const [viewMode, setViewMode] = useState('PBD'); // 'PBD' atau 'SUMATIF'
+            const [viewMode, setViewMode] = useState('PBD');
 
-            // Top Summary Stats
             const totalStudents = useMemo(() => config.students[filterClass]?.length || 0, [config, filterClass]);
             const totalRecords = useMemo(() => records.filter(r => r.kelas === filterClass && r.subjek === filterSubject).length, [records, filterClass, filterSubject]);
 
-            // Data Matriks PBD
             const matrixDataPBD = useMemo(() => {
                 let filtered = [];
                 records.forEach(r => {
-                    if(r.stdKandungan !== 'MARKAH UJIAN') { // Asingkan Sumatif
+                    if(r.stdKandungan !== 'MARKAH UJIAN') {
                         r.results.forEach(res => {
                             if (res.tp && res.tp !== 'Belum Dinilai' && res.tp !== '') {
                                 if (r.kelas === filterClass && r.subjek === filterSubject) {
@@ -1006,7 +970,6 @@
                 return { columns, rows };
             }, [records, filterClass, filterSubject]);
 
-            // Data Matriks Sumatif
             const matrixDataSumatif = useMemo(() => {
                 let filtered = [];
                 records.forEach(r => {
@@ -1029,7 +992,6 @@
                 filtered.forEach(item => {
                     const rowKey = item.studentName;
                     if (!rowsMap[rowKey]) rowsMap[rowKey] = { studentName: item.studentName, kelas: filterClass, results: {} };
-                    // Extra markah raw and desc
                     const rawM = item.markahStr.split('%')[0];
                     rowsMap[rowKey].results[item.ujian] = { str: item.markahStr, markah: rawM, tarikh: item.tarikh, info: getGradeInfo(rawM) };
                 });
@@ -1051,8 +1013,6 @@
 
             return (
                 <div className="space-y-6 fade-in print-area">
-                    
-                    {/* WOW SUMMARY CARDS */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-2 no-print">
                         <div className="bg-gradient-to-br from-teal-500 to-teal-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
                             <div className="absolute -right-4 -top-4 opacity-20 text-8xl"><i className="fas fa-users"></i></div>
@@ -1078,7 +1038,7 @@
                         <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-gray-100 pb-6 gap-4 no-print">
                             <h2 className="text-2xl font-bold text-gray-800 flex items-center"><i className="fas fa-chart-pie text-teal-500 mr-3 text-3xl"></i> Laporan Analisis Matriks</h2>
                             <button onClick={downloadPDF} className={`text-white px-6 py-2.5 rounded-xl shadow-md font-bold text-sm flex items-center gap-2 transform hover:-translate-y-0.5 transition ${viewMode==='PBD' ? 'bg-gradient-to-r from-teal-500 to-teal-600 hover:shadow-teal-500/30' : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:shadow-indigo-500/30'}`}>
-                                <i className="fas fa-print"></i> Cetak Laporan
+                                <i className="fas fa-print"></i> Cetak PDF Laporan
                             </button>
                         </div>
 
@@ -1102,7 +1062,6 @@
                             </div>
                         </div>
 
-                        {/* PAPARAN MATRIKS PBD */}
                         {viewMode === 'PBD' && (
                             <div id="dashboard-print-area" className="w-full overflow-x-auto fade-in">
                                 <div className="hidden print:block mb-8 text-center border-b-2 border-gray-300 pb-4">
@@ -1154,7 +1113,6 @@
                             </div>
                         )}
 
-                        {/* PAPARAN MATRIKS SUMATIF */}
                         {viewMode === 'SUMATIF' && (
                             <div id="sumatif-print-area" className="w-full overflow-x-auto fade-in">
                                 <div className="hidden print:block mb-8 text-center border-b-2 border-gray-300 pb-4">
@@ -1276,7 +1234,7 @@
                     {studentInfo ? (
                         <div id="slip-print-content" className="border-4 border-double border-gray-300 p-10 rounded-2xl relative max-w-4xl mx-auto bg-white shadow-xl mb-10">
                             
-                            <div className="text-center mb-10 border-b-2 border-gray-200 pb-8">
+                            <div className="text-center mb-10 border-b-2 border-gray-200 pb-8 pt-4">
                                 <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900 mb-1">Slip Keputusan Murid</h1>
                                 <p className="text-gray-500 font-bold uppercase tracking-wider text-sm">Pentaksiran Bilik Darjah & Ujian Sumatif</p>
                             </div>
@@ -1286,7 +1244,6 @@
                                 <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 shadow-sm"><p className="text-gray-400 font-extrabold uppercase tracking-wider mb-1 text-xs">Kelas</p><p className="font-black text-xl text-gray-800 uppercase">{selClass}</p></div>
                             </div>
 
-                            {/* PBD SECTION */}
                             <h3 className="font-extrabold text-gray-800 text-lg mb-4 border-l-4 border-teal-500 pl-3 uppercase tracking-wider">BAHAGIAN A: Pentaksiran Bilik Darjah (PBD)</h3>
                             {pbdRecords.length > 0 ? (
                                 <table className="w-full text-left border-collapse border border-gray-300 mb-10 rounded-lg overflow-hidden shadow-sm">
@@ -1304,7 +1261,6 @@
                                 </table>
                             ) : <div className="text-center py-6 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 font-bold italic mb-10">Tiada rekod PBD ditemui.</div>}
 
-                            {/* SUMATIF SECTION */}
                             <h3 className="font-extrabold text-gray-800 text-lg mb-4 border-l-4 border-indigo-500 pl-3 uppercase tracking-wider mt-6">BAHAGIAN B: Pencapaian Ujian (Sumatif)</h3>
                             {sumatifRecords.length > 0 ? (
                                 <table className="w-full text-left border-collapse border border-gray-300 rounded-lg overflow-hidden shadow-sm">
@@ -1364,7 +1320,7 @@
             };
             const handleRecordAdded = (newRecord) => setRecords(prev => [...prev, newRecord]);
             const handleRecordUpdated = (updatedRecord) => setRecords(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
-            const handleRecordDeleted = (deletedId) => setRecords(prev => prev.filter(r => r.id !== deletedId));
+            const handleRecordDeleted = (id) => setRecords(prev => prev.filter(r => r.id !== id));
 
             if (loadingData) return (
                 <div className="min-h-screen flex items-center justify-center bg-teal-50 flex-col gap-6 text-primary">
@@ -1382,9 +1338,7 @@
                 <div className="flex h-screen overflow-hidden bg-gray-100">
                     {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
                     
-                    {/* SIDEBAR DENGAN GRADIENT WOW */}
                     <div className="w-64 bg-gradient-to-b from-dark via-[#064e3b] to-teal-900 text-white flex flex-col shadow-2xl no-print z-20 shrink-0 relative overflow-hidden">
-                        {/* Hiasan background abstrak dalam sidebar */}
                         <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
                         
                         <div className="p-6 flex flex-col items-center gap-3 bg-black/20 border-b border-teal-800/50 backdrop-blur-sm relative z-10">
@@ -1402,8 +1356,8 @@
                                 <>
                                     <button onClick={() => setActiveTab('form')} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'form' ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-lg transform translate-x-1' : 'text-teal-100/70 hover:bg-white/10 hover:text-white'}`}><i className="fas fa-edit w-5 text-center text-lg"></i> Perekodan PBD</button>
                                     <button onClick={() => setActiveTab('sumatif')} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'sumatif' ? 'bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-lg transform translate-x-1' : 'text-teal-100/70 hover:bg-white/10 hover:text-white'}`}><i className="fas fa-file-signature w-5 text-center text-lg"></i> Markah Sumatif</button>
-                                    <button onClick={() => setActiveTab('sejarah')} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'sejarah' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg transform translate-x-1' : 'text-teal-100/70 hover:bg-white/10 hover:text-white'}`}><i className="fas fa-history w-5 text-center text-lg"></i> Sunting Rekod</button>
-                                    <button onClick={() => setActiveTab('config')} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'config' ? 'bg-gradient-to-r from-gray-600 to-gray-800 text-white shadow-lg transform translate-x-1' : 'text-teal-100/70 hover:bg-white/10 hover:text-white'}`}><i className="fas fa-cogs w-5 text-center text-lg"></i> Pengurusan Data</button>
+                                    <button onClick={() => setActiveTab('urus')} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'urus' ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg transform translate-x-1' : 'text-teal-100/70 hover:bg-white/10 hover:text-white'}`}><i className="fas fa-list-ul w-5 text-center text-lg"></i> Urus & Sunting Rekod</button>
+                                    <button onClick={() => setActiveTab('config')} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'config' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg transform translate-x-1' : 'text-teal-100/70 hover:bg-white/10 hover:text-white'}`}><i className="fas fa-cogs w-5 text-center text-lg"></i> Pengurusan Data</button>
                                 </>
                             )}
                             
@@ -1422,12 +1376,10 @@
                     </div>
 
                     <div className="flex-1 flex flex-col overflow-hidden h-full relative print-area w-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed">
-                        
-                        {/* HEADER GLASSMORPHISM */}
                         <header className="glass-header shadow-sm px-8 py-5 flex justify-between items-center no-print z-10 shrink-0 border-b border-gray-200/50">
                             <div>
                                 <h2 className="text-2xl font-black text-gray-800 tracking-tight">
-                                    {activeTab === 'form' ? 'Modul Kemasukan Data PBD' : activeTab === 'sumatif' ? 'Modul Markah Ujian (Sumatif)' : activeTab === 'sejarah' ? 'Sejarah Rekod & Suntingan' : activeTab === 'config' ? 'Tetapan Sistem Pusat' : activeTab === 'dashboard' ? 'Laporan & Analisis Prestasi' : 'Cetakan Slip Individu'}
+                                    {activeTab === 'form' ? 'Modul Kemasukan Data PBD' : activeTab === 'sumatif' ? 'Modul Markah Ujian (Sumatif)' : activeTab === 'config' ? 'Tetapan Sistem Pusat' : activeTab === 'urus' ? 'Pengurusan & Suntingan Rekod' : activeTab === 'dashboard' ? 'Laporan & Analisis Prestasi' : 'Cetakan Slip Individu'}
                                 </h2>
                                 <p className="text-sm text-gray-500 font-medium mt-0.5">{new Date().toLocaleDateString('ms-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                             </div>
@@ -1445,7 +1397,7 @@
                                 {activeTab === 'config' && user.role === 'admin' && <PengurusanData config={config} onUpdateConfig={handleUpdateConfig} showToast={showToast} />}
                                 {activeTab === 'form' && user.role === 'admin' && <BorangRekod showToast={showToast} user={user} config={config} onRecordAdded={handleRecordAdded} />}
                                 {activeTab === 'sumatif' && user.role === 'admin' && <BorangSumatif showToast={showToast} user={user} config={config} onRecordAdded={handleRecordAdded} />}
-                                {activeTab === 'sejarah' && user.role === 'admin' && <SenaraiRekod records={records} config={config} user={user} showToast={showToast} onRecordUpdated={handleRecordUpdated} onRecordDeleted={handleRecordDeleted} />}
+                                {activeTab === 'urus' && user.role === 'admin' && <SenaraiRekod records={records} config={config} onRecordUpdated={handleRecordUpdated} onRecordDeleted={handleRecordDeleted} showToast={showToast} />}
                                 {activeTab === 'dashboard' && <DashboardAnalisis records={records} config={config} />}
                                 {activeTab === 'slip' && <SlipIndividu records={records} config={config} />}
                             </div>
