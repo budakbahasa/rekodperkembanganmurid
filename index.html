@@ -983,7 +983,7 @@
                         r.results.forEach(res => {
                             if (res.tp && res.tp !== 'Belum Dinilai' && res.tp !== '') {
                                 if (r.kelas === filterClass && r.subjek === filterSubject) {
-                                    filtered.push({ tarikh: r.tarikh, stdKandungan: r.stdKandungan, stdPembelajaran: r.stdPembelajaran, kemahiran: r.kemahiran, studentName: res.studentName, tp: res.tp });
+                                    filtered.push({ tarikh: r.tarikh, stdPembelajaran: r.stdPembelajaran, kemahiran: r.kemahiran, studentName: res.studentName, tp: res.tp });
                                 }
                             }
                         });
@@ -1001,12 +1001,26 @@
                     } 
                 });
 
+                // Cari SP minimum bagi setiap kemahiran untuk tujuan susunan
+                const kemahiranMinSP = {};
+                Object.values(colsMap).forEach(col => {
+                    if (!col.isTPKeseluruhan) {
+                        if (!kemahiranMinSP[col.kemahiran]) kemahiranMinSP[col.kemahiran] = col.sp;
+                        else if (col.sp.localeCompare(kemahiranMinSP[col.kemahiran], undefined, {numeric: true}) < 0) {
+                            kemahiranMinSP[col.kemahiran] = col.sp;
+                        }
+                    }
+                });
+
                 const columns = Object.values(colsMap).sort((a, b) => {
-                    const kemA = a.kemahiran || '';
-                    const kemB = b.kemahiran || '';
-                    const kemCmp = kemA.localeCompare(kemB);
+                    const kemA_min = kemahiranMinSP[a.kemahiran] || a.kemahiran;
+                    const kemB_min = kemahiranMinSP[b.kemahiran] || b.kemahiran;
+                    
+                    // 1. Susun mengikut Kemahiran berpandukan SP terkecil
+                    const kemCmp = kemA_min.localeCompare(kemB_min, undefined, {numeric: true});
                     if (kemCmp !== 0) return kemCmp;
 
+                    // 2. Susun jenis TP mengikut kategori
                     const getTypeWeight = (col) => {
                         if (col.sp.includes('TP KESELURUHAN (PAT)')) return 4;
                         if (col.sp.includes('TP KESELURUHAN (PPT)')) return 3;
@@ -1018,6 +1032,7 @@
                     const weightB = getTypeWeight(b);
                     if (weightA !== weightB) return weightA - weightB;
 
+                    // 3. Susun SP biasa secara menaik
                     return a.sp.localeCompare(b.sp, undefined, {numeric: true});
                 });
 
@@ -1025,6 +1040,7 @@
                 filtered.forEach(item => {
                     const rowKey = item.studentName;
                     if (!rowsMap[rowKey]) rowsMap[rowKey] = { studentName: item.studentName, kelas: filterClass, results: {} };
+                    
                     if (!rowsMap[rowKey].results[item.stdPembelajaran]) rowsMap[rowKey].results[item.stdPembelajaran] = [];
                     
                     const exists = rowsMap[rowKey].results[item.stdPembelajaran].find(x => x.tp === item.tp && x.tarikh === item.tarikh);
@@ -1032,6 +1048,7 @@
                 });
 
                 const rows = Object.values(rowsMap).sort((a, b) => a.studentName.localeCompare(b.studentName));
+                
                 return { columns, rows };
             }, [records, filterClass, filterSubject, startDate, endDate]);
 
@@ -1113,6 +1130,37 @@
                             </button>
                         </div>
 
+                        <div className="flex flex-col sm:flex-row gap-3 mb-8 no-print">
+                            <button onClick={()=>setViewMode('PBD')} className={`flex-1 py-4 px-4 font-extrabold text-sm rounded-xl transition-all border-2 flex justify-center items-center gap-2 ${viewMode==='PBD' ? 'bg-teal-50 border-teal-500 text-teal-800 shadow-md transform scale-[1.01]' : 'bg-white border-gray-100 text-gray-400 hover:border-teal-200 hover:text-teal-600'}`}><i className="fas fa-tasks text-lg"></i> LAPORAN PBD (FORMATIF)</button>
+                            <button onClick={()=>setViewMode('SUMATIF')} className={`flex-1 py-4 px-4 font-extrabold text-sm rounded-xl transition-all border-2 flex justify-center items-center gap-2 ${viewMode==='SUMATIF' ? 'bg-indigo-50 border-indigo-500 text-indigo-800 shadow-md transform scale-[1.01]' : 'bg-white border-gray-100 text-gray-400 hover:border-indigo-200 hover:text-indigo-600'}`}><i className="fas fa-file-contract text-lg"></i> LAPORAN UJIAN (SUMATIF)</button>
+                        </div>
+
+                        <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 no-print ${viewMode==='PBD' ? 'bg-teal-50/50 border-teal-100' : 'bg-indigo-50/50 border-indigo-100'} p-6 rounded-2xl border shadow-inner`}>
+                            <div>
+                                <label className="block text-xs font-extrabold text-gray-500 mb-2 uppercase tracking-wider">Tapis Kelas</label>
+                                <select value={filterClass} onChange={e => setFilterClass(e.target.value)} className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 bg-white font-bold text-gray-800 outline-none shadow-sm">
+                                    {config.classes.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-extrabold text-gray-500 mb-2 uppercase tracking-wider">Tapis Subjek</label>
+                                <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)} className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 bg-white font-bold text-gray-800 outline-none shadow-sm">
+                                    {config.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-extrabold text-gray-500 mb-2 uppercase tracking-wider">Tarikh Mula</label>
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 bg-white font-medium text-gray-800 outline-none shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-extrabold text-gray-500 mb-2 uppercase tracking-wider">Tarikh Akhir</label>
+                                <div className="flex gap-2">
+                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 bg-white font-medium text-gray-800 outline-none shadow-sm" />
+                                    <button onClick={() => { setStartDate(''); setEndDate(''); }} className="bg-gray-200 hover:bg-gray-300 text-gray-600 px-3 rounded-xl transition" title="Reset Tarikh"><i className="fas fa-sync-alt"></i></button>
+                                </div>
+                            </div>
+                        </div>
+
                         {viewMode === 'PBD' && matrixDataPBD.columns.length > 0 && (
                             <div className="mb-6 bg-teal-50 border border-teal-200 p-4 rounded-xl no-print shadow-sm fade-in">
                                 <label className="block text-xs font-extrabold text-teal-800 mb-3 uppercase tracking-wider">
@@ -1121,12 +1169,27 @@
                                 <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-2">
                                     {matrixDataPBD.columns.map(col => {
                                         let colDisplay = col.sp;
-                                        if (col.sp.includes('TP KESELURUHAN (PAT)')) colDisplay = `[PAT] ${col.kemahiran}`;
-                                        else if (col.sp.includes('TP KESELURUHAN (PPT)')) colDisplay = `[PPT] ${col.kemahiran}`;
-                                        else if (col.sp.includes('TP KESELURUHAN')) colDisplay = `[KESELURUHAN] ${col.kemahiran}`;
+                                        let badgeColor = 'bg-white border-teal-200 text-teal-700 hover:bg-teal-100';
+                                        let checkedColor = 'bg-teal-500 border-teal-600 text-white shadow-md';
+                                        
+                                        if (col.sp.includes('TP KESELURUHAN (PAT)')) { 
+                                            colDisplay = `[PAT] ${col.kemahiran}`; 
+                                            badgeColor = 'bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-100';
+                                            checkedColor = 'bg-indigo-500 border-indigo-600 text-white shadow-md';
+                                        }
+                                        else if (col.sp.includes('TP KESELURUHAN (PPT)')) { 
+                                            colDisplay = `[PPT] ${col.kemahiran}`; 
+                                            badgeColor = 'bg-white border-blue-200 text-blue-700 hover:bg-blue-100';
+                                            checkedColor = 'bg-blue-500 border-blue-600 text-white shadow-md';
+                                        }
+                                        else if (col.sp.includes('TP KESELURUHAN')) { 
+                                            colDisplay = `[SEMASA] ${col.kemahiran}`; 
+                                            badgeColor = 'bg-white border-green-200 text-green-700 hover:bg-green-100';
+                                            checkedColor = 'bg-green-500 border-green-600 text-white shadow-md';
+                                        }
 
                                         return (
-                                        <label key={col.sp} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition ${selectedCols.includes(col.sp) ? 'bg-teal-500 border-teal-600 text-white shadow-md' : 'bg-white border-teal-200 text-teal-700 hover:bg-teal-100'}`}>
+                                        <label key={col.sp} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition ${selectedCols.includes(col.sp) ? checkedColor : badgeColor}`}>
                                             <input type="checkbox" className="hidden" checked={selectedCols.includes(col.sp)} onChange={() => {
                                                 if(selectedCols.includes(col.sp)) setSelectedCols(selectedCols.filter(x => x !== col.sp));
                                                 else setSelectedCols([...selectedCols, col.sp]);
@@ -1136,6 +1199,88 @@
                                     )})}
                                 </div>
                                 {selectedCols.length > 0 && <div className="mt-3 border-t border-teal-200 pt-3"><button onClick={() => setSelectedCols([])} className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 border border-red-200 hover:border-red-500 transition px-3 py-1.5 rounded-lg"><i className="fas fa-times mr-1"></i> Padam Semua Pilihan</button></div>}
+                            </div>
+                        )}
+
+                        {viewMode === 'PBD' && (
+                            <div id="dashboard-print-area" className="w-full overflow-x-auto fade-in bg-white p-6 rounded-xl">
+                                <div className="mb-8 border-b-2 border-gray-300 pb-4 pt-2 block">
+                                    <table className="text-sm font-bold text-gray-800">
+                                        <tbody>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Rekod Perkembangan Murid</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
+                                            <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {headerDateText.replace('Tarikh: ', '')}</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {matrixDataPBD.rows.length > 0 ? (
+                                    <div className="w-full min-w-max">
+                                        <table className="w-full text-left text-xs sm:text-sm border-collapse border border-gray-300 shadow-sm rounded-lg overflow-hidden">
+                                            <thead className="bg-gray-100 text-gray-800 border-b-2 border-gray-300">
+                                                <tr>
+                                                    <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-48 bg-gray-200">Nama Murid</th>
+                                                    {displayColumns.map(col => {
+                                                        let headerBg = 'bg-gray-50 text-gray-800';
+                                                        let titleText = col.sp;
+                                                        
+                                                        if (col.sp.includes('TP KESELURUHAN (PAT)')) { headerBg = 'bg-indigo-100 text-indigo-900 border-indigo-200'; titleText = 'TP (PAT)'; }
+                                                        else if (col.sp.includes('TP KESELURUHAN (PPT)')) { headerBg = 'bg-blue-100 text-blue-900 border-blue-200'; titleText = 'TP (PPT)'; }
+                                                        else if (col.sp.includes('TP KESELURUHAN')) { headerBg = 'bg-green-100 text-green-900 border-green-200'; titleText = 'TP (SEMASA)'; }
+                                                        
+                                                        return (
+                                                        <th key={col.sp} className={`py-3 px-2 border border-gray-300 font-bold text-center w-24 align-top ${headerBg}`}>
+                                                            <div className="text-sm font-black">{titleText}</div>
+                                                            <div className="text-[9px] mt-1 uppercase font-semibold break-words mx-auto leading-tight opacity-70">{col.kemahiran}</div>
+                                                        </th>
+                                                    )})}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {matrixDataPBD.rows.map((row, i) => (
+                                                    <tr key={i} className="hover:bg-teal-50/50 transition">
+                                                        <td className="py-2 px-3 border border-gray-300 font-extrabold text-gray-800 uppercase text-xs align-middle">{row.studentName}</td>
+                                                        {displayColumns.map(col => {
+                                                            const resArr = row.results[col.sp] || [];
+                                                            
+                                                            let cellBgClass = '';
+                                                            let badgeClass = 'text-teal-700 bg-teal-100';
+
+                                                            if (col.sp.includes('TP KESELURUHAN (PAT)')) { cellBgClass = 'bg-indigo-50/50'; badgeClass = 'text-indigo-700 bg-indigo-100'; }
+                                                            else if (col.sp.includes('TP KESELURUHAN (PPT)')) { cellBgClass = 'bg-blue-50/50'; badgeClass = 'text-blue-700 bg-blue-100'; }
+                                                            else if (col.sp.includes('TP KESELURUHAN')) { cellBgClass = 'bg-green-50/50'; badgeClass = 'text-green-700 bg-green-100'; }
+                                                            
+                                                            return (
+                                                                <td key={col.sp} className={`py-2 px-1 border border-gray-300 text-center align-middle ${cellBgClass}`}>
+                                                                    {resArr.length > 0 ? (
+                                                                        <div className="flex flex-col items-center justify-center gap-1.5">
+                                                                            {resArr.map((res, idx) => (
+                                                                                <div key={idx} className="flex flex-col items-center">
+                                                                                    <div className={`font-black text-sm px-2 py-0.5 rounded shadow-sm border border-black/5 ${badgeClass}`}>{res.tp}</div>
+                                                                                    <div className="text-[9px] text-gray-500 font-bold tracking-wider leading-none mt-1">{new Date(res.tarikh).getDate()}/{new Date(res.tarikh).getMonth()+1}</div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : <span className="text-gray-300 font-black">-</span>}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        
+                                        <div className="mt-16 mb-8 flex justify-end w-full pr-12">
+                                            <div className="text-center">
+                                                <p className="mb-12 font-bold text-gray-800 text-sm">Disediakan oleh,</p>
+                                                <p className="italic text-xl mb-1 text-gray-700 font-serif">amirul</p>
+                                                <p className="font-bold text-gray-900 uppercase text-sm border-t border-gray-400 pt-2">(MOHAMAD AMIRUL HUSNI BIN MOHD NASIR)</p>
+                                                <p className="text-xs font-bold text-gray-600 mt-1">Guru Mata Pelajaran</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : <div className="text-center py-16 text-gray-400 bg-gray-50 border border-gray-200 rounded-xl flex flex-col items-center"><i className="fas fa-calendar-times text-4xl mb-3 text-gray-300"></i><p className="font-bold">Tiada rekod penilaian PBD dijumpai dalam julat tarikh ini.</p></div>}
                             </div>
                         )}
 
