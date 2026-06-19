@@ -51,18 +51,19 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* TUKAR SEMUA TEKS KE HITAM PEKAT SEMASA CETAK PDF */
+        /* TUKAR SEMUA TEKS KE HITAM PEKAT & TEBAL SEMASA CETAK PDF */
         .force-black-print * {
             color: #000000 !important;
             opacity: 1 !important;
             -webkit-text-fill-color: #000000 !important;
             text-shadow: none !important;
+            font-weight: 900 !important; /* Paksa semua tulisan jadi sangat tebal */
         }
         .force-black-print table, 
         .force-black-print th, 
         .force-black-print td {
             border-color: #000000 !important;
-            border-width: 1px !important;
+            border-width: 2px !important; /* Paksa garisan jadi tebal */
             border-style: solid !important;
         }
 
@@ -1109,22 +1110,22 @@
 
             const downloadPDF = () => {
                 const element = document.getElementById(viewMode === 'PBD' ? 'dashboard-print-area' : 'sumatif-print-area');
-                
-                // Tambah kelas untuk HITAMKAN semua teks semasa PDF dicetak
-                element.classList.add('force-black-print');
+                element.classList.add('force-black-print'); // Tambah kelas hitam pekat
 
                 const title = viewMode === 'PBD' ? 'Rekod_Perkembangan_Murid' : 'Laporan_Markah_Ujian';
                 const opt = {
                     margin: [10, 10, 10, 10], filename: `${title}_${filterClass}_${getMYDate()}.pdf`,
                     image: { type: 'jpeg', quality: 1.0 },
-                    html2canvas: { scale: 2, useCORS: true, ignoreElements: (n) => n.classList.contains('no-print') },
+                    html2canvas: { scale: 3, useCORS: true, ignoreElements: (n) => n.classList.contains('no-print') }, // Scale 3 untuk resolusi super tinggi
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
                 };
                 
-                window.html2pdf().set(opt).from(element).save().then(() => {
-                    // Buang kelas selepas PDF selesai dimuat turun
-                    element.classList.remove('force-black-print');
-                });
+                // Guna setTimeout untuk pastikan browser render warna hitam sebelum snap PDF
+                setTimeout(() => {
+                    window.html2pdf().set(opt).from(element).save().then(() => {
+                        element.classList.remove('force-black-print'); // Buang semula selepas siap
+                    });
+                }, 150);
             };
 
             const headerDateText = (startDate && endDate) ? `Tarikh: ${formatMYDate(startDate)} hingga ${formatMYDate(endDate)}` :
@@ -1449,15 +1450,20 @@
             const downloadPDF = () => {
                 if(!studentInfo) return;
                 const element = document.getElementById('slip-print-content');
-                element.classList.add('force-black-print');
-                
+                element.classList.add('force-black-print'); // Paksa tulisan hitam
+
                 const opt = {
                     margin: [15, 15, 15, 15], filename: `Slip_${studentInfo.name.replace(/\s+/g, '_')}_${getMYDate()}.pdf`,
-                    image: { type: 'jpeg', quality: 1.0 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    image: { type: 'jpeg', quality: 1.0 }, 
+                    html2canvas: { scale: 3, useCORS: true }, // Resolusi HD
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
-                window.html2pdf().set(opt).from(element).save().then(() => {
-                    element.classList.remove('force-black-print');
-                });
+                
+                setTimeout(() => {
+                    window.html2pdf().set(opt).from(element).save().then(() => {
+                        element.classList.remove('force-black-print');
+                    });
+                }, 150);
             };
 
             return (
