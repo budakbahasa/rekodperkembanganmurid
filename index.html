@@ -393,19 +393,10 @@
                 setResults(initialResults);
             }, [formData.kelas, config.students]);
 
-            const uniqueSKs = useMemo(() => {
+            const uniqueKemahiran = useMemo(() => {
                 const syllabusList = (config.syllabus && config.syllabus[formData.subjek]) || [];
-                return [...new Set(syllabusList.map(item => item.sk))];
-            }, [config.syllabus, formData.subjek]);
-
-            // KEMAS KINI: Ambil nilai unik dan pasangkannya dengan kemahiran yang betul
-            const uniqueSKsObj = useMemo(() => {
-                const syllabusList = (config.syllabus && config.syllabus[formData.subjek]) || [];
-                const map = new Map();
-                syllabusList.forEach(item => {
-                    if (!map.has(item.sk)) map.set(item.sk, item.kemahiran);
-                });
-                return Array.from(map.keys()).map(sk => ({ sk, kemahiran: map.get(sk) }));
+                const kemahiranSet = new Set(syllabusList.map(item => item.kemahiran ? item.kemahiran.trim() : ''));
+                return [...kemahiranSet].filter(k => k);
             }, [config.syllabus, formData.subjek]);
 
             const handleModeChange = (newMod) => {
@@ -413,11 +404,11 @@
                 setFormData(prev => ({ ...prev, stdKandungan: '', stdPembelajaran: '', kemahiran: '', selectedSyllabusId: '', selectedSKs: [] }));
             };
 
-            const toggleSK = (sk) => {
+            const toggleKemahiran = (kem) => {
                 setFormData(prev => {
                     const current = prev.selectedSKs;
-                    if(current.includes(sk)) return { ...prev, selectedSKs: current.filter(x => x !== sk) };
-                    return { ...prev, selectedSKs: [...current, sk] };
+                    if(current.includes(kem)) return { ...prev, selectedSKs: current.filter(x => x !== kem) };
+                    return { ...prev, selectedSKs: [...current, kem] };
                 });
             };
 
@@ -429,7 +420,7 @@
                 if (mod === 'SP') {
                     if (!formData.selectedSyllabusId) return showToast('Sila pilih Standard Pembelajaran.', 'error');
                 } else if (mod === 'SK') {
-                    if (formData.selectedSKs.length === 0) return showToast('Sila pilih sekurang-kurangnya satu Kemahiran/ Bidang.', 'error');
+                    if (formData.selectedSKs.length === 0) return showToast('Sila pilih sekurang-kurangnya satu Kemahiran Asas.', 'error');
                     
                     setIsSaving(true);
                     try {
@@ -439,10 +430,12 @@
                             return { studentId: id, studentName: student ? student.name : 'Unknown', tp: results[id] || 'Belum Dinilai' };
                         });
 
-                        // Simpan setiap SK yang dipilih secara berasingan supaya menyatu ke dalam jadual matriks!
-                        const promises = formData.selectedSKs.map(sk => {
+                        const promises = formData.selectedSKs.map(kem => {
                             const newRecord = { 
-                                ...formData, stdKandungan: sk, stdPembelajaran: 'TP KESELURUHAN', kemahiran: 'RUMUSAN KESELURUHAN',
+                                ...formData, 
+                                stdKandungan: '-', 
+                                stdPembelajaran: `TP KESELURUHAN: ${kem}`, 
+                                kemahiran: kem,
                                 results: detailedResults, createdAt: new Date().toISOString(), createdBy: user.name 
                             };
                             return fetch(GAS_URL, {
@@ -463,7 +456,7 @@
                         setResults(resetRes);
                     } catch (error) { showToast('Ralat: ' + error.message, 'error'); } 
                     finally { setIsSaving(false); }
-                    return; // Mesti return di sini kerana loop sudah uruskan proses simpan
+                    return; 
                     
                 } else if (mod === 'PPT') {
                     finalKandungan = 'PENCAPAIAN PENGGAL';
@@ -569,23 +562,20 @@
                             {mod === 'SK' && (
                                 <div className="bg-white p-5 rounded-xl border border-teal-200 shadow-sm">
                                     <label className="block text-sm font-extrabold text-teal-800 mb-3 uppercase tracking-wider">
-                                        <i className="fas fa-check-square mr-1 text-teal-500"></i> Pilih Kemahiran Asas / Bidang / Tajuk
+                                        <i className="fas fa-check-square mr-1 text-teal-500"></i> Pilih Kemahiran Asas / Bidang (Boleh pilih lebih daripada satu)
                                     </label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-2">
-                                        {uniqueSKsObj.length > 0 ? uniqueSKsObj.map(item => (
-                                            <label key={item.sk} className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.selectedSKs.includes(item.sk) ? 'border-teal-500 bg-teal-50 shadow-sm' : 'border-gray-100 bg-white hover:border-teal-200'}`}>
+                                        {uniqueKemahiran.length > 0 ? uniqueKemahiran.map(kem => (
+                                            <label key={kem} className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${formData.selectedSKs.includes(kem) ? 'border-teal-500 bg-teal-50 shadow-sm' : 'border-gray-100 bg-white hover:border-teal-200'}`}>
                                                 <input 
                                                     type="checkbox" 
-                                                    checked={formData.selectedSKs.includes(item.sk)}
-                                                    onChange={() => toggleSK(item.sk)}
-                                                    className="w-5 h-5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                                                    checked={formData.selectedSKs.includes(kem)}
+                                                    onChange={() => toggleKemahiran(kem)}
+                                                    className="w-5 h-5 mt-0.5 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
                                                 />
-                                                <div className="flex flex-col">
-                                                    <span className={`text-sm font-black ${formData.selectedSKs.includes(item.sk) ? 'text-teal-800' : 'text-gray-700'}`}>{item.kemahiran}</span>
-                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Topik: {item.sk}</span>
-                                                </div>
+                                                <span className={`text-sm font-bold ${formData.selectedSKs.includes(kem) ? 'text-teal-800' : 'text-gray-600'}`}>{kem}</span>
                                             </label>
-                                        )) : <p className="text-gray-400 italic text-sm">Tiada senarai. Sila daftar di Pengurusan Data.</p>}
+                                        )) : <p className="text-gray-400 italic text-sm">Tiada senarai Kemahiran. Sila daftar di Pengurusan Data.</p>}
                                     </div>
                                 </div>
                             )}
@@ -1002,11 +992,7 @@
                         r.results.forEach(res => {
                             if (res.tp && res.tp !== 'Belum Dinilai' && res.tp !== '') {
                                 if (r.kelas === filterClass && r.subjek === filterSubject) {
-                                    // DINAMIK TP KESELURUHAN: Gabungkan dgn SK supaya dia tersusun dlm column khusus SK tersebut
-                                    let colKey = r.stdPembelajaran;
-                                    if (colKey === 'TP KESELURUHAN') colKey = `TP KESELURUHAN ${r.stdKandungan}`;
-                                    
-                                    filtered.push({ tarikh: r.tarikh, stdKandungan: r.stdKandungan, stdPembelajaran: colKey, kemahiran: r.kemahiran, studentName: res.studentName, tp: res.tp, originalSP: r.stdPembelajaran });
+                                    filtered.push({ tarikh: r.tarikh, stdKandungan: r.stdKandungan, stdPembelajaran: r.stdPembelajaran, kemahiran: r.kemahiran, studentName: res.studentName, tp: res.tp });
                                 }
                             }
                         });
@@ -1017,11 +1003,11 @@
                 filtered.forEach(item => { 
                     if (!colsMap[item.stdPembelajaran]) {
                         colsMap[item.stdPembelajaran] = { 
-                            sp: item.stdPembelajaran, kemahiran: item.kemahiran,
-                            isTPKeseluruhan: item.originalSP === 'TP KESELURUHAN',
-                            skAssoc: item.stdKandungan,
-                            isPPT_PAT: item.originalSP === 'PERTENGAHAN TAHUN (PPT)' || item.originalSP === 'AKHIR TAHUN (PAT)'
-                        };
+                            sp: item.stdPembelajaran, 
+                            kemahiran: item.kemahiran,
+                            isTPKeseluruhan: item.stdPembelajaran.includes('TP KESELURUHAN'),
+                            isPPT_PAT: item.stdPembelajaran === 'PERTENGAHAN TAHUN (PPT)' || item.stdPembelajaran === 'AKHIR TAHUN (PAT)'
+                        }; 
                     } 
                 });
 
@@ -1030,30 +1016,24 @@
                     if (!a.isPPT_PAT && b.isPPT_PAT) return -1;
                     if (a.isPPT_PAT && b.isPPT_PAT) return a.sp.localeCompare(b.sp);
 
-                    const skCompare = a.skAssoc.localeCompare(b.skAssoc, undefined, {numeric: true});
-                    if (skCompare !== 0) return skCompare;
-
-                    // Letak TP KESELURUHAN selepas semua SP bagi SK yg sama
                     if (a.isTPKeseluruhan && !b.isTPKeseluruhan) return 1;
                     if (!a.isTPKeseluruhan && b.isTPKeseluruhan) return -1;
-                    
+                    if (a.isTPKeseluruhan && b.isTPKeseluruhan) return a.kemahiran.localeCompare(b.kemahiran);
+
                     return a.sp.localeCompare(b.sp, undefined, {numeric: true});
                 });
 
                 const rowsMap = {};
                 filtered.forEach(item => {
-                    const rowKey = `${item.studentName}||${item.stdKandungan}`;
-                    if (!rowsMap[rowKey]) rowsMap[rowKey] = { studentName: item.studentName, kelas: filterClass, stdKandungan: item.stdKandungan, kemahiranAsas: item.kemahiran, results: {} };
-                    rowsMap[rowKey].results[item.stdPembelajaran] = { tp: item.tp, tarikh: item.tarikh };
+                    const rowKey = item.studentName;
+                    if (!rowsMap[rowKey]) rowsMap[rowKey] = { studentName: item.studentName, kelas: filterClass, results: {} };
+                    if (!rowsMap[rowKey].results[item.stdPembelajaran]) rowsMap[rowKey].results[item.stdPembelajaran] = [];
+                    
+                    const exists = rowsMap[rowKey].results[item.stdPembelajaran].find(x => x.tp === item.tp && x.tarikh === item.tarikh);
+                    if(!exists) rowsMap[rowKey].results[item.stdPembelajaran].push({ tp: item.tp, tarikh: item.tarikh });
                 });
 
-                const rows = Object.values(rowsMap).sort((a, b) => {
-                    const nameCmp = a.studentName.localeCompare(b.studentName);
-                    if (nameCmp !== 0) return nameCmp;
-                    if (a.stdKandungan.includes('PENGGAL')) return 1;
-                    if (b.stdKandungan.includes('PENGGAL')) return -1;
-                    return a.stdKandungan.localeCompare(b.stdKandungan, undefined, {numeric: true});
-                });
+                const rows = Object.values(rowsMap).sort((a, b) => a.studentName.localeCompare(b.studentName));
                 return { columns, rows };
             }, [records, filterClass, filterSubject, startDate, endDate]);
 
@@ -1179,25 +1159,20 @@
                                                 if(selectedCols.includes(col.sp)) setSelectedCols(selectedCols.filter(x => x !== col.sp));
                                                 else setSelectedCols([...selectedCols, col.sp]);
                                             }}/>
-                                            {col.isTPKeseluruhan ? `TP KESELURUHAN (${col.skAssoc})` : col.sp}
+                                            {col.isTPKeseluruhan ? `[KESELURUHAN] ${col.kemahiran}` : col.sp}
                                         </label>
                                     ))}
                                 </div>
-                                {selectedCols.length > 0 && <div className="mt-3 border-t border-teal-200 pt-3"><button onClick={() => setSelectedCols([])} className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 border border-red-200 hover:border-red-500 transition px-3 py-1.5 rounded-lg"><i className="fas fa-times mr-1"></i> Padam Semua Pilihan SP</button></div>}
+                                {selectedCols.length > 0 && <div className="mt-3 border-t border-teal-200 pt-3"><button onClick={() => setSelectedCols([])} className="text-xs font-bold text-red-500 hover:text-white bg-red-50 hover:bg-red-500 border border-red-200 hover:border-red-500 transition px-3 py-1.5 rounded-lg"><i className="fas fa-times mr-1"></i> Padam Semua Pilihan</button></div>}
                             </div>
                         )}
 
                         {viewMode === 'PBD' && (
-                            <div id="dashboard-print-area" className="w-full overflow-x-auto fade-in bg-white p-6 rounded-xl relative">
-                                <div className="mb-8 border-b-2 border-gray-300 pb-4 pt-2 block">
-                                    <table className="text-sm font-bold text-gray-800">
-                                        <tbody>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Rekod Perkembangan Murid</td></tr>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
-                                            <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {headerDateText.replace('Tarikh: ', '')}</td></tr>
-                                        </tbody>
-                                    </table>
+                            <div id="dashboard-print-area" className="w-full overflow-x-auto fade-in bg-white p-6 rounded-xl">
+                                <div className="mb-8 text-center border-b-2 border-gray-300 pb-4 pt-4">
+                                    <h1 className="text-2xl font-black uppercase text-gray-900 tracking-wider">Rekod Perkembangan Murid</h1>
+                                    <p className="text-gray-600 font-bold text-sm mt-1 mb-1">Kelas: {filterClass} &nbsp;|&nbsp; Subjek: {filterSubject}</p>
+                                    <p className="inline-block bg-teal-100 text-teal-800 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-widest">{headerDateText}</p>
                                 </div>
 
                                 {matrixDataPBD.rows.length > 0 ? (
@@ -1205,12 +1180,12 @@
                                         <table className="w-full text-left text-xs sm:text-sm border-collapse border border-gray-300 shadow-sm rounded-lg overflow-hidden">
                                             <thead className="bg-gray-100 text-gray-800 border-b-2 border-gray-300">
                                                 <tr>
-                                                    <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-48 bg-gray-200">Nama Murid</th>
-                                                    <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-64 bg-gray-200">Standard Kandungan</th>
+                                                    <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-64 bg-gray-200">Nama Murid</th>
                                                     {displayColumns.map(col => (
                                                         <th key={col.sp} className={`py-3 px-2 border border-gray-300 font-bold text-center w-24 align-top ${col.isTPKeseluruhan || col.isPPT_PAT ? 'bg-blue-100 text-blue-900 border-blue-200' : 'bg-gray-50'}`}>
-                                                            <div className="text-sm font-black">{col.isTPKeseluruhan ? 'TP KESELURUHAN' : col.sp}</div>
-                                                            <div className="text-[9px] text-gray-500 mt-1 uppercase font-semibold break-words mx-auto leading-tight">{col.isTPKeseluruhan ? 'RUMUSAN' : col.kemahiran}</div>
+                                                            <div className="text-sm font-black">{col.isTPKeseluruhan ? col.kemahiran : col.sp}</div>
+                                                            {!col.isTPKeseluruhan && !col.isPPT_PAT && <div className="text-[9px] text-gray-500 mt-1 uppercase font-semibold break-words mx-auto leading-tight">{col.kemahiran}</div>}
+                                                            {col.isPPT_PAT && <div className="text-[9px] text-gray-500 mt-1 uppercase font-semibold break-words mx-auto leading-tight">PENGGAL</div>}
                                                         </th>
                                                     ))}
                                                 </tr>
@@ -1218,20 +1193,20 @@
                                             <tbody>
                                                 {matrixDataPBD.rows.map((row, i) => (
                                                     <tr key={i} className="hover:bg-teal-50/50 transition">
-                                                        <td className="py-2 px-3 border border-gray-300 font-extrabold text-gray-800 uppercase text-xs">{row.studentName}</td>
-                                                        <td className={`py-2 px-3 border border-gray-300 ${row.stdKandungan === 'PENCAPAIAN PENGGAL' ? 'bg-orange-50 font-bold text-orange-900' : ''}`}>
-                                                            <div className="font-extrabold text-gray-800 text-xs">{row.stdKandungan}</div>
-                                                            <div className="text-[10px] text-gray-500 uppercase mt-1 font-semibold">{row.kemahiranAsas}</div>
-                                                        </td>
+                                                        <td className="py-3 px-3 border border-gray-300 font-extrabold text-gray-800 uppercase text-xs align-middle">{row.studentName}</td>
                                                         {displayColumns.map(col => {
-                                                            const res = row.results[col.sp];
+                                                            const resArr = row.results[col.sp] || [];
                                                             const isSpecial = col.isTPKeseluruhan || col.isPPT_PAT;
                                                             return (
                                                                 <td key={col.sp} className={`py-2 px-1 border border-gray-300 text-center align-middle ${isSpecial ? 'bg-blue-50/50' : ''}`}>
-                                                                    {res ? (
-                                                                        <div className="flex flex-col items-center justify-center">
-                                                                            <div className={`font-black text-sm px-2 py-0.5 rounded ${isSpecial ? 'text-blue-700 bg-blue-100' : 'text-primary bg-teal-100'}`}>{res.tp}</div>
-                                                                            <div className="text-[9px] text-gray-400 font-bold mt-1 tracking-wider">{new Date(res.tarikh).getDate()}/{new Date(res.tarikh).getMonth()+1}</div>
+                                                                    {resArr.length > 0 ? (
+                                                                        <div className="flex flex-col items-center justify-center gap-1.5">
+                                                                            {resArr.map((res, idx) => (
+                                                                                <div key={idx} className="flex flex-col items-center">
+                                                                                    <div className={`font-black text-sm px-2 py-0.5 rounded ${isSpecial ? 'text-blue-700 bg-blue-100' : 'text-primary bg-teal-100'}`}>{res.tp}</div>
+                                                                                    <div className="text-[9px] text-gray-400 font-bold tracking-wider leading-none mt-0.5">{new Date(res.tarikh).getDate()}/{new Date(res.tarikh).getMonth()+1}</div>
+                                                                                </div>
+                                                                            ))}
                                                                         </div>
                                                                     ) : <span className="text-gray-300 font-black">-</span>}
                                                                 </td>
@@ -1343,7 +1318,11 @@
                 records.forEach(r => {
                     const sRes = r.results.find(res => res.studentId === selStudent);
                     if(sRes && sRes.tp !== '' && sRes.tp !== 'Belum Dinilai') {
-                        const rec = { tarikh: r.tarikh, subjek: r.subjek, kandungan: `${r.stdKandungan} / ${r.stdPembelajaran}`, kemahiran: r.kemahiran, tp: sRes.tp };
+                        let kandunganDisp = r.stdPembelajaran;
+                        if (!r.stdPembelajaran.includes('TP KESELURUHAN') && r.stdKandungan && r.stdKandungan !== '-') {
+                            kandunganDisp = `${r.stdKandungan} / ${r.stdPembelajaran}`;
+                        }
+                        const rec = { tarikh: r.tarikh, subjek: r.subjek, kandungan: kandunganDisp, kemahiran: r.kemahiran, tp: sRes.tp };
                         if(r.stdKandungan === 'MARKAH UJIAN') {
                             const rawMarkah = sRes.tp.split('%')[0];
                             sumatif.push({ tarikh: r.tarikh, subjek: r.subjek, ujian: r.stdPembelajaran, markah: sRes.tp, info: getGradeInfo(rawMarkah) });
