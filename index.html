@@ -51,19 +51,41 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+        /* TUKAR SEMUA TEKS KE HITAM PEKAT SEMASA CETAK PDF */
+        .force-black-print * {
+            color: #000000 !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: #000000 !important;
+            text-shadow: none !important;
+        }
+        .force-black-print table, 
+        .force-black-print th, 
+        .force-black-print td {
+            border-color: #000000 !important;
+            border-width: 1px !important;
+            border-style: solid !important;
+        }
+
         @media print {
-            body { background-color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { background-color: white !important; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             .print-area { width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
             @page { margin: 1cm; size: landscape; }
             .page-break { page-break-before: always; }
             
-            /* Tetapan Cetakan Lebih Jelas (Warna Hitam) */
-            #dashboard-print-area table, #sumatif-print-area table { border: 1px solid black; }
-            #dashboard-print-area th, #dashboard-print-area td, #sumatif-print-area th, #sumatif-print-area td { border: 1px solid #94a3b8 !important; padding: 4px !important; color: black !important; }
-            .text-gray-500, .text-gray-400, .text-gray-300, .text-gray-600, .text-gray-800, .text-gray-700 { color: #000 !important; }
-            .opacity-70, .opacity-80 { opacity: 1 !important; }
+            /* JIKA CIKGU GUNA CTRL+P, KOD INI AKAN HITAMKAN TULISAN JUGA */
+            #dashboard-print-area *, #sumatif-print-area *, #slip-print-content * {
+                color: #000000 !important;
+                opacity: 1 !important;
+                -webkit-text-fill-color: #000000 !important;
+            }
+            #dashboard-print-area table, #sumatif-print-area table, #slip-print-content table,
+            #dashboard-print-area th, #dashboard-print-area td, 
+            #sumatif-print-area th, #sumatif-print-area td,
+            #slip-print-content th, #slip-print-content td { 
+                border: 1px solid #000000 !important; 
+            }
             
             #slip-print-content { transform: scale(0.95); transform-origin: top left; }
         }
@@ -91,6 +113,9 @@
     <div id="root"></div>
 
     <script type="text/babel">
+        // =========================================================================
+        // URL WEB APP GOOGLE APPS SCRIPT CIKGU
+        // =========================================================================
         const GAS_URL = "https://script.google.com/macros/s/AKfycbz95f8JTZG8cdUQEzP-n5_ZS7D-qd9LeadOfzlEAqn9QxCAEA3b9XXSkNzF9yYLcyLxEQ/exec";
         
         const { useState, useEffect, useMemo } = React;
@@ -117,7 +142,7 @@
             return { grade: 'F', desc: 'BELUM MENCAPAI TAHAP', color: 'bg-red-600 text-white' };
         };
 
-        const TP_OPTIONS = ["TP 1", "TP 2", "TP 3", "TP 4", "TP 5", "TP 6", "BM", "M", "MDB", "TH", "PEMULIHAN", "/", "X"];
+        const TP_OPTIONS = ["TP 1", "TP 2", "TP 3", "TP 4", "TP 5", "TP 6", "BM", "MDB", "M", "TH", "PEMULIHAN", "/", "X"];
 
         const getTPColor = (tpVal) => {
             const v = tpVal.toUpperCase().trim();
@@ -1084,14 +1109,22 @@
 
             const downloadPDF = () => {
                 const element = document.getElementById(viewMode === 'PBD' ? 'dashboard-print-area' : 'sumatif-print-area');
+                
+                // Tambah kelas untuk HITAMKAN semua teks semasa PDF dicetak
+                element.classList.add('force-black-print');
+
                 const title = viewMode === 'PBD' ? 'Rekod_Perkembangan_Murid' : 'Laporan_Markah_Ujian';
                 const opt = {
                     margin: [10, 10, 10, 10], filename: `${title}_${filterClass}_${getMYDate()}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
+                    image: { type: 'jpeg', quality: 1.0 },
                     html2canvas: { scale: 2, useCORS: true, ignoreElements: (n) => n.classList.contains('no-print') },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
                 };
-                window.html2pdf().set(opt).from(element).save();
+                
+                window.html2pdf().set(opt).from(element).save().then(() => {
+                    // Buang kelas selepas PDF selesai dimuat turun
+                    element.classList.remove('force-black-print');
+                });
             };
 
             const headerDateText = (startDate && endDate) ? `Tarikh: ${formatMYDate(startDate)} hingga ${formatMYDate(endDate)}` :
@@ -1208,10 +1241,10 @@
                                 <div className="mb-8 border-b-2 border-gray-300 pb-4 pt-2 block">
                                     <table className="text-sm font-bold text-gray-800">
                                         <tbody>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Rekod Perkembangan Murid</td></tr>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
-                                            <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {headerDateText.replace('Tarikh: ', '')}</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-800 font-extrabold uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Rekod Perkembangan Murid</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-800 font-extrabold uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-800 font-extrabold uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
+                                            <tr><td className="pr-6 text-gray-800 font-extrabold uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {headerDateText.replace('Tarikh: ', '')}</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -1221,7 +1254,7 @@
                                         <table className="w-full text-left text-xs sm:text-sm border-collapse border border-gray-300 shadow-sm rounded-lg overflow-hidden">
                                             <thead className="bg-gray-100 text-gray-800 border-b-2 border-gray-300">
                                                 <tr>
-                                                    <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-48 bg-gray-200">Nama Murid</th>
+                                                    <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-48 bg-gray-200 text-gray-900">Nama Murid</th>
                                                     {displayColumns.map(col => {
                                                         let headerBg = 'bg-gray-50 text-gray-800';
                                                         let titleText = col.sp;
@@ -1239,14 +1272,14 @@
                                                                 case '5': headerBg = 'bg-violet-100 text-violet-900 border-violet-300'; break;
                                                                 case '6': headerBg = 'bg-orange-100 text-orange-900 border-orange-300'; break;
                                                                 case '7': headerBg = 'bg-lime-100 text-lime-900 border-lime-300'; break;
-                                                                default: headerBg = 'bg-gray-50 text-gray-800'; break;
+                                                                default: headerBg = 'bg-gray-50 text-gray-900'; break;
                                                             }
                                                         }
                                                         
                                                         return (
                                                         <th key={col.sp} className={`py-3 px-2 border border-gray-300 font-bold text-center w-24 align-top ${headerBg}`}>
                                                             <div className="text-sm font-black">{titleText}</div>
-                                                            <div className="text-[9px] mt-1 uppercase font-semibold break-words mx-auto leading-tight opacity-70">{col.kemahiran}</div>
+                                                            <div className="text-[10px] mt-1 uppercase font-bold break-words mx-auto leading-tight text-gray-900">{col.kemahiran}</div>
                                                         </th>
                                                     )})}
                                                 </tr>
@@ -1254,7 +1287,7 @@
                                             <tbody>
                                                 {matrixDataPBD.rows.map((row, i) => (
                                                     <tr key={i} className="hover:bg-teal-50/50 transition bg-white">
-                                                        <td className="py-2 px-3 border border-gray-300 font-extrabold text-gray-800 uppercase text-xs align-middle">{row.studentName}</td>
+                                                        <td className="py-2 px-3 border border-gray-300 font-extrabold text-gray-900 uppercase text-xs align-middle">{row.studentName}</td>
                                                         {displayColumns.map(col => {
                                                             const resArr = row.results[col.sp] || [];
                                                             
@@ -1282,11 +1315,11 @@
                                                                             {resArr.map((res, idx) => (
                                                                                 <div key={idx} className="flex flex-col items-center w-full px-1">
                                                                                     <div className={`font-black text-xs px-1.5 py-0.5 rounded shadow-sm border w-full text-center whitespace-nowrap ${getTPColor(res.tp)}`}>{res.tp}</div>
-                                                                                    <div className="text-[9px] text-gray-500 font-bold tracking-wider leading-none mt-1">{new Date(res.tarikh).getDate()}/{new Date(res.tarikh).getMonth()+1}</div>
+                                                                                    <div className="text-[10px] text-gray-800 font-bold tracking-wider leading-none mt-1">{new Date(res.tarikh).getDate()}/{new Date(res.tarikh).getMonth()+1}</div>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
-                                                                    ) : <span className="text-gray-300 font-black">-</span>}
+                                                                    ) : <span className="text-gray-900 font-black">-</span>}
                                                                 </td>
                                                             );
                                                         })}
@@ -1295,16 +1328,16 @@
                                             </tbody>
                                         </table>
 
-                                        <div className="mt-8 text-xs font-bold text-gray-600 bg-gray-50 p-3 rounded-lg border border-gray-200 inline-block">
-                                            <i className="fas fa-info-circle mr-1"></i> <span className="text-gray-800">PETUNJUK KESELURUHAN:</span> <strong className="text-red-600">BM</strong> (Belum Menguasai) &nbsp;|&nbsp; <strong className="text-amber-600">MDB</strong> (Menguasai Dengan Bimbingan) &nbsp;|&nbsp; <strong className="text-emerald-600">M</strong> (Menguasai)
+                                        <div className="mt-8 text-xs font-bold text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-200 inline-block">
+                                            <i className="fas fa-info-circle mr-1"></i> <span className="text-gray-900">PETUNJUK KESELURUHAN:</span> <strong className="text-red-700">BM</strong> (Belum Menguasai) &nbsp;|&nbsp; <strong className="text-amber-700">MDB</strong> (Menguasai Dengan Bimbingan) &nbsp;|&nbsp; <strong className="text-emerald-700">M</strong> (Menguasai)
                                         </div>
                                         
                                         <div className="mt-16 mb-8 flex justify-end w-full pr-12">
                                             <div className="text-center">
-                                                <p className="mb-12 font-bold text-gray-800 text-sm">Disediakan oleh,</p>
-                                                <p className="italic text-xl mb-1 text-gray-700 font-serif">amirul</p>
+                                                <p className="mb-12 font-bold text-gray-900 text-sm">Disediakan oleh,</p>
+                                                <p className="italic text-xl mb-1 text-gray-900 font-serif">amirul</p>
                                                 <p className="font-bold text-gray-900 uppercase text-sm border-t border-gray-400 pt-2">(MOHAMAD AMIRUL HUSNI BIN MOHD NASIR)</p>
-                                                <p className="text-xs font-bold text-gray-600 mt-1">Guru Mata Pelajaran</p>
+                                                <p className="text-xs font-bold text-gray-800 mt-1">Guru Mata Pelajaran</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1317,10 +1350,10 @@
                                 <div className="mb-8 border-b-2 border-gray-300 pb-4 pt-2 block">
                                     <table className="text-sm font-bold text-gray-800">
                                         <tbody>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Laporan Markah Ujian (Sumatif)</td></tr>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
-                                            <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {headerDateText.replace('Tarikh: ', '')}</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-800 font-extrabold uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Laporan Markah Ujian (Sumatif)</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-800 font-extrabold uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-800 font-extrabold uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
+                                            <tr><td className="pr-6 text-gray-800 font-extrabold uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {headerDateText.replace('Tarikh: ', '')}</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -1330,28 +1363,28 @@
                                         <table className="w-full text-left text-xs sm:text-sm border-collapse border border-gray-300 shadow-sm rounded-lg overflow-hidden">
                                             <thead className="bg-indigo-100 text-indigo-900 border-b-2 border-indigo-200">
                                                 <tr>
-                                                    <th className="py-4 px-4 border border-indigo-200 font-extrabold uppercase w-16 text-center">Bil</th>
-                                                    <th className="py-4 px-4 border border-indigo-200 font-extrabold uppercase w-64">Nama Murid</th>
+                                                    <th className="py-4 px-4 border border-indigo-200 font-extrabold uppercase w-16 text-center text-indigo-900">Bil</th>
+                                                    <th className="py-4 px-4 border border-indigo-200 font-extrabold uppercase w-64 text-indigo-900">Nama Murid</th>
                                                     {matrixDataSumatif.columns.map(col => (
-                                                        <th key={col} className="py-4 px-3 border border-indigo-200 font-black text-center whitespace-nowrap bg-indigo-200/50">{col}</th>
+                                                        <th key={col} className="py-4 px-3 border border-indigo-200 font-black text-center whitespace-nowrap bg-indigo-200/50 text-indigo-900">{col}</th>
                                                     ))}
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {matrixDataSumatif.rows.map((row, i) => (
                                                     <tr key={i} className="hover:bg-indigo-50/50 transition bg-white">
-                                                        <td className="py-3 px-4 border border-gray-300 text-center text-gray-500 font-bold">{i+1}</td>
-                                                        <td className="py-3 px-4 border border-gray-300 font-extrabold text-gray-800 uppercase">{row.studentName}</td>
+                                                        <td className="py-3 px-4 border border-gray-300 text-center text-gray-900 font-bold">{i+1}</td>
+                                                        <td className="py-3 px-4 border border-gray-300 font-extrabold text-gray-900 uppercase">{row.studentName}</td>
                                                         {matrixDataSumatif.columns.map(col => {
                                                             const res = row.results[col];
                                                             return (
                                                                 <td key={col} className="py-2 px-2 border border-gray-300 text-center align-middle">
                                                                     {res ? (
                                                                         <div className="flex flex-col items-center">
-                                                                            <div className="text-lg font-black text-indigo-900 mb-1">{res.markah}<span className="text-xs text-indigo-400">%</span></div>
-                                                                            <div className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full text-white shadow-sm ${res.info.color.split(' ')[0]}`}>{res.info.grade} - {res.info.desc}</div>
+                                                                            <div className="text-lg font-black text-indigo-900 mb-1">{res.markah}<span className="text-xs font-bold">%</span></div>
+                                                                            <div className={`text-[10px] font-extrabold uppercase bg-indigo-100 text-indigo-900 rounded px-2 py-1 inline-block`}>{res.info.grade} - {res.info.desc}</div>
                                                                         </div>
-                                                                    ) : <span className="text-gray-300 font-black">-</span>}
+                                                                    ) : <span className="text-gray-900 font-black">-</span>}
                                                                 </td>
                                                             );
                                                         })}
@@ -1362,10 +1395,10 @@
                                         
                                         <div className="mt-16 mb-8 flex justify-end w-full pr-12">
                                             <div className="text-center">
-                                                <p className="mb-12 font-bold text-gray-800 text-sm">Disediakan oleh,</p>
-                                                <p className="italic text-xl mb-1 text-gray-700 font-serif">amirul</p>
+                                                <p className="mb-12 font-bold text-gray-900 text-sm">Disediakan oleh,</p>
+                                                <p className="italic text-xl mb-1 text-gray-900 font-serif">amirul</p>
                                                 <p className="font-bold text-gray-900 uppercase text-sm border-t border-gray-400 pt-2">(MOHAMAD AMIRUL HUSNI BIN MOHD NASIR)</p>
-                                                <p className="text-xs font-bold text-gray-600 mt-1">Guru Mata Pelajaran</p>
+                                                <p className="text-xs font-bold text-gray-800 mt-1">Guru Mata Pelajaran</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1416,11 +1449,15 @@
             const downloadPDF = () => {
                 if(!studentInfo) return;
                 const element = document.getElementById('slip-print-content');
+                element.classList.add('force-black-print');
+                
                 const opt = {
                     margin: [15, 15, 15, 15], filename: `Slip_${studentInfo.name.replace(/\s+/g, '_')}_${getMYDate()}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    image: { type: 'jpeg', quality: 1.0 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
-                window.html2pdf().set(opt).from(element).save();
+                window.html2pdf().set(opt).from(element).save().then(() => {
+                    element.classList.remove('force-black-print');
+                });
             };
 
             return (
@@ -1452,56 +1489,56 @@
                             
                             <div className="text-center mb-10 border-b-2 border-gray-200 pb-8 pt-4">
                                 <h1 className="text-3xl font-black uppercase tracking-widest text-gray-900 mb-1">Slip Keputusan Murid</h1>
-                                <p className="text-gray-500 font-bold uppercase tracking-wider text-sm">Pentaksiran Bilik Darjah & Ujian Sumatif</p>
+                                <p className="text-gray-800 font-bold uppercase tracking-wider text-sm">Pentaksiran Bilik Darjah & Ujian Sumatif</p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-6 mb-10 text-sm">
-                                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 shadow-sm"><p className="text-gray-400 font-extrabold uppercase tracking-wider mb-1 text-xs">Nama Murid</p><p className="font-black text-xl text-gray-800 uppercase">{studentInfo.name}</p></div>
-                                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 shadow-sm"><p className="text-gray-400 font-extrabold uppercase tracking-wider mb-1 text-xs">Kelas</p><p className="font-black text-xl text-gray-800 uppercase">{selClass}</p></div>
+                                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 shadow-sm"><p className="text-gray-800 font-extrabold uppercase tracking-wider mb-1 text-xs">Nama Murid</p><p className="font-black text-xl text-gray-900 uppercase">{studentInfo.name}</p></div>
+                                <div className="bg-gray-50 p-5 rounded-xl border border-gray-100 shadow-sm"><p className="text-gray-800 font-extrabold uppercase tracking-wider mb-1 text-xs">Kelas</p><p className="font-black text-xl text-gray-900 uppercase">{selClass}</p></div>
                             </div>
 
-                            <h3 className="font-extrabold text-gray-800 text-lg mb-4 border-l-4 border-teal-500 pl-3 uppercase tracking-wider">BAHAGIAN A: Pentaksiran Bilik Darjah (PBD)</h3>
+                            <h3 className="font-extrabold text-gray-900 text-lg mb-4 border-l-4 border-teal-500 pl-3 uppercase tracking-wider">BAHAGIAN A: Pentaksiran Bilik Darjah (PBD)</h3>
                             {pbdRecords.length > 0 ? (
                                 <table className="w-full text-left border-collapse border border-gray-300 mb-10 rounded-lg overflow-hidden shadow-sm">
-                                    <thead><tr className="bg-teal-50"><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm w-24">Tarikh</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm w-48">Subjek</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm">Standard Kandungan/Pembelajaran</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm text-center w-20">TP</th></tr></thead>
+                                    <thead><tr className="bg-teal-50"><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm w-24 text-gray-900">Tarikh</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm w-48 text-gray-900">Subjek</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm text-gray-900">Standard Kandungan/Pembelajaran</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm text-center w-20 text-gray-900">TP</th></tr></thead>
                                     <tbody className="bg-white">
                                         {pbdRecords.map((r, i) => (
                                             <tr key={i} className="hover:bg-gray-50">
-                                                <td className="py-3 px-4 border border-gray-300 text-sm font-semibold text-gray-600 whitespace-nowrap">{formatMYDate(r.tarikh)}</td>
-                                                <td className="py-3 px-4 border border-gray-300 text-sm font-black text-gray-800">{r.subjek}</td>
-                                                <td className="py-3 px-4 border border-gray-300 text-sm"><div className="font-bold text-gray-800 mb-1">{r.kandungan}</div><div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{r.kemahiran}</div></td>
-                                                <td className="py-3 px-4 border border-gray-300 text-sm font-black text-center text-teal-700 bg-teal-50/30">{r.tp}</td>
+                                                <td className="py-3 px-4 border border-gray-300 text-sm font-bold text-gray-800 whitespace-nowrap">{formatMYDate(r.tarikh)}</td>
+                                                <td className="py-3 px-4 border border-gray-300 text-sm font-black text-gray-900">{r.subjek}</td>
+                                                <td className="py-3 px-4 border border-gray-300 text-sm"><div className="font-bold text-gray-900 mb-1">{r.kandungan}</div><div className="text-[10px] text-gray-800 font-bold uppercase tracking-wider">{r.kemahiran}</div></td>
+                                                <td className="py-3 px-4 border border-gray-300 text-sm font-black text-center text-teal-900 bg-teal-50/30">{r.tp}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                            ) : <div className="text-center py-6 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 font-bold italic mb-10">Tiada rekod PBD ditemui.</div>}
+                            ) : <div className="text-center py-6 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 font-bold italic mb-10">Tiada rekod PBD ditemui.</div>}
 
-                            <h3 className="font-extrabold text-gray-800 text-lg mb-4 border-l-4 border-indigo-500 pl-3 uppercase tracking-wider mt-6">BAHAGIAN B: Pencapaian Ujian (Sumatif)</h3>
+                            <h3 className="font-extrabold text-gray-900 text-lg mb-4 border-l-4 border-indigo-500 pl-3 uppercase tracking-wider mt-6">BAHAGIAN B: Pencapaian Ujian (Sumatif)</h3>
                             {sumatifRecords.length > 0 ? (
                                 <table className="w-full text-left border-collapse border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-                                    <thead><tr className="bg-indigo-50"><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm w-24">Tarikh</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm w-48">Subjek</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm">Nama Ujian</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm text-center w-32">Markah & Gred</th></tr></thead>
+                                    <thead><tr className="bg-indigo-50"><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm w-24 text-gray-900">Tarikh</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm w-48 text-gray-900">Subjek</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm text-gray-900">Nama Ujian</th><th className="py-3 px-4 border border-gray-300 font-extrabold text-sm text-center w-32 text-gray-900">Markah & Gred</th></tr></thead>
                                     <tbody className="bg-white">
                                         {sumatifRecords.map((r, i) => (
                                             <tr key={i} className="hover:bg-gray-50">
-                                                <td className="py-3 px-4 border border-gray-300 text-sm font-semibold text-gray-600 whitespace-nowrap">{formatMYDate(r.tarikh)}</td>
-                                                <td className="py-3 px-4 border border-gray-300 text-sm font-black text-gray-800">{r.subjek}</td>
-                                                <td className="py-3 px-4 border border-gray-300 text-sm font-bold">{r.ujian}</td>
+                                                <td className="py-3 px-4 border border-gray-300 text-sm font-bold text-gray-800 whitespace-nowrap">{formatMYDate(r.tarikh)}</td>
+                                                <td className="py-3 px-4 border border-gray-300 text-sm font-black text-gray-900">{r.subjek}</td>
+                                                <td className="py-3 px-4 border border-gray-300 text-sm font-bold text-gray-900">{r.ujian}</td>
                                                 <td className="py-3 px-4 border border-gray-300 text-sm text-center align-middle bg-indigo-50/30">
                                                     <div className="font-black text-lg text-indigo-900 mb-1">{r.markah.split(' ')[0]}</div>
-                                                    <div className="text-[10px] font-extrabold uppercase bg-indigo-100 text-indigo-800 rounded px-2 py-1 inline-block">{r.info.grade} - {r.info.desc}</div>
+                                                    <div className="text-[10px] font-extrabold uppercase bg-indigo-100 text-indigo-900 rounded px-2 py-1 inline-block">{r.info.grade} - {r.info.desc}</div>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                            ) : <div className="text-center py-6 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 font-bold italic">Tiada rekod ujian ditemui.</div>}
-                            
-                            <div className="mt-8 text-xs font-bold text-gray-600 bg-gray-50 p-3 rounded-lg border border-gray-200 inline-block w-full text-center">
-                                <i className="fas fa-info-circle mr-1"></i> <span className="text-gray-800">PETUNJUK KESELURUHAN:</span> <strong className="text-red-600">BM</strong> (Belum Menguasai) &nbsp;|&nbsp; <strong className="text-amber-600">MDB</strong> (Menguasai Dengan Bimbingan) &nbsp;|&nbsp; <strong className="text-emerald-600">M</strong> (Menguasai)
+                            ) : <div className="text-center py-6 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 font-bold italic">Tiada rekod ujian ditemui.</div>}
+
+                            <div className="mt-8 text-xs font-bold text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-200 inline-block w-full text-center">
+                                <i className="fas fa-info-circle mr-1"></i> <span className="text-gray-900">PETUNJUK KESELURUHAN:</span> <strong className="text-red-700">BM</strong> (Belum Menguasai) &nbsp;|&nbsp; <strong className="text-amber-700">MDB</strong> (Menguasai Dengan Bimbingan) &nbsp;|&nbsp; <strong className="text-emerald-700">M</strong> (Menguasai)
                             </div>
 
-                            <div className="mt-16 text-center text-xs font-bold text-gray-400 uppercase tracking-widest"><p>Dokumen ini dijana secara automatik pada {new Date().toLocaleString('ms-MY', { timeZone: 'Asia/Kuala_Lumpur' })}</p></div>
+                            <div className="mt-16 text-center text-xs font-bold text-gray-800 uppercase tracking-widest"><p>Dokumen ini dijana secara automatik pada {new Date().toLocaleString('ms-MY', { timeZone: 'Asia/Kuala_Lumpur' })}</p></div>
                         </div>
                     ) : <div className="text-center py-20 text-gray-400 bg-white border border-gray-100 rounded-2xl shadow-sm"><i className="fas fa-user-graduate text-5xl mb-4 text-gray-200"></i><h3 className="font-bold text-lg">Sila pilih murid di atas untuk menjana slip.</h3></div>}
                 </div>
