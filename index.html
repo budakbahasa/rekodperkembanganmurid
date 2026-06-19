@@ -1096,10 +1096,15 @@
 
                         {viewMode === 'PBD' && (
                             <div id="dashboard-print-area" className="w-full overflow-x-auto fade-in bg-white p-6 rounded-xl">
-                                <div className="hidden print:block mb-8 text-center border-b-2 border-gray-300 pb-4 pt-4">
-                                    <h1 className="text-2xl font-black uppercase text-gray-900 tracking-wider">Laporan Analisis PBD</h1>
-                                    <p className="text-gray-600 font-bold text-sm mt-1">Kelas: {filterClass} &nbsp;|&nbsp; Subjek: {filterSubject}</p>
-                                    {(startDate || endDate) && <p className="text-gray-500 font-bold text-xs mt-1">Tarikh Rekod: {startDate ? formatMYDate(startDate) : 'Awal Tahun'} hingga {endDate ? formatMYDate(endDate) : 'Kini'}</p>}
+                                <div className="mb-8 border-b-2 border-gray-300 pb-4 pt-2">
+                                    <table className="text-sm font-bold text-gray-800">
+                                        <tbody>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Laporan Analisis PBD</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
+                                            {(startDate || endDate) && <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {startDate ? formatMYDate(startDate) : 'Awal Tahun'} hingga {endDate ? formatMYDate(endDate) : 'Kini'}</td></tr>}
+                                        </tbody>
+                                    </table>
                                 </div>
 
                                 {matrixDataPBD.rows.length > 0 ? (
@@ -1159,10 +1164,15 @@
 
                         {viewMode === 'SUMATIF' && (
                             <div id="sumatif-print-area" className="w-full overflow-x-auto fade-in bg-white p-6 rounded-xl">
-                                <div className="hidden print:block mb-8 text-center border-b-2 border-gray-300 pb-4 pt-4">
-                                    <h1 className="text-2xl font-black uppercase text-gray-900 tracking-wider">Laporan Markah Ujian (Sumatif)</h1>
-                                    <p className="text-gray-600 font-bold text-sm mt-1">Kelas: {filterClass} &nbsp;|&nbsp; Subjek: {filterSubject}</p>
-                                    {(startDate || endDate) && <p className="text-gray-500 font-bold text-xs mt-1">Tarikh Rekod: {startDate ? formatMYDate(startDate) : 'Awal Tahun'} hingga {endDate ? formatMYDate(endDate) : 'Kini'}</p>}
+                                <div className="mb-8 border-b-2 border-gray-300 pb-4 pt-2">
+                                    <table className="text-sm font-bold text-gray-800">
+                                        <tbody>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Laporan Markah Ujian (Sumatif)</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
+                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
+                                            {(startDate || endDate) && <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {startDate ? formatMYDate(startDate) : 'Awal Tahun'} hingga {endDate ? formatMYDate(endDate) : 'Kini'}</td></tr>}
+                                        </tbody>
+                                    </table>
                                 </div>
 
                                 {matrixDataSumatif.rows.length > 0 ? (
