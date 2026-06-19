@@ -117,6 +117,28 @@
 
         const TP_OPTIONS = ["TP 1", "TP 2", "TP 3", "TP 4", "TP 5", "TP 6", "BELUM MENGUASAI", "MENGUASAI", "MENGUASAI DENGAN BIMBINGAN", "TH", "PEMULIHAN", "/", "X"];
 
+        const getTPColor = (tpVal) => {
+            const v = tpVal.toUpperCase().trim();
+            if (['TP 1', 'TP 2', 'BELUM MENGUASAI', 'X'].includes(v)) return 'text-red-700 bg-red-50 border-red-200';
+            if (['TP 3', 'TP 4', 'MENGUASAI DENGAN BIMBINGAN'].includes(v)) return 'text-amber-700 bg-amber-50 border-amber-200';
+            if (['TP 5', 'TP 6', 'MENGUASAI', '/'].includes(v)) return 'text-emerald-700 bg-emerald-50 border-emerald-200';
+            if (['TH', 'PEMULIHAN'].includes(v)) return 'text-slate-700 bg-slate-50 border-slate-300';
+            return 'text-teal-700 bg-teal-50 border-teal-200';
+        };
+
+        const compareSP = (spA, spB) => {
+            const partsA = spA.match(/\d+/g) || [];
+            const partsB = spB.match(/\d+/g) || [];
+            if(partsA.length === 0 && partsB.length > 0) return 1;
+            if(partsB.length === 0 && partsA.length > 0) return -1;
+            for(let i=0; i<Math.max(partsA.length, partsB.length); i++) {
+                const numA = parseInt(partsA[i] || 0, 10);
+                const numB = parseInt(partsB[i] || 0, 10);
+                if(numA !== numB) return numA - numB;
+            }
+            return spA.localeCompare(spB);
+        };
+
         const Toast = ({ message, type, onClose }) => {
             useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
             const bgColor = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-500' : 'bg-blue-600';
@@ -983,7 +1005,7 @@
                         r.results.forEach(res => {
                             if (res.tp && res.tp !== 'Belum Dinilai' && res.tp !== '') {
                                 if (r.kelas === filterClass && r.subjek === filterSubject) {
-                                    filtered.push({ tarikh: r.tarikh, stdPembelajaran: r.stdPembelajaran, kemahiran: r.kemahiran, studentName: res.studentName, tp: res.tp });
+                                    filtered.push({ tarikh: r.tarikh, stdKandungan: r.stdKandungan, stdPembelajaran: r.stdPembelajaran, kemahiran: r.kemahiran, studentName: res.studentName, tp: res.tp });
                                 }
                             }
                         });
@@ -1001,26 +1023,23 @@
                     } 
                 });
 
-                // Cari SP minimum bagi setiap kemahiran untuk tujuan susunan
-                const kemahiranMinSP = {};
-                Object.values(colsMap).forEach(col => {
-                    if (!col.isTPKeseluruhan) {
-                        if (!kemahiranMinSP[col.kemahiran]) kemahiranMinSP[col.kemahiran] = col.sp;
-                        else if (col.sp.localeCompare(kemahiranMinSP[col.kemahiran], undefined, {numeric: true}) < 0) {
-                            kemahiranMinSP[col.kemahiran] = col.sp;
-                        }
+                const syllabusList = (config.syllabus && config.syllabus[filterSubject]) || [];
+                const kemahiranSPSortKey = {};
+                syllabusList.forEach(item => {
+                    if (!kemahiranSPSortKey[item.kemahiran]) {
+                        kemahiranSPSortKey[item.kemahiran] = item.sp;
+                    } else if (compareSP(item.sp, kemahiranSPSortKey[item.kemahiran]) < 0) {
+                        kemahiranSPSortKey[item.kemahiran] = item.sp;
                     }
                 });
 
                 const columns = Object.values(colsMap).sort((a, b) => {
-                    const kemA_min = kemahiranMinSP[a.kemahiran] || a.kemahiran;
-                    const kemB_min = kemahiranMinSP[b.kemahiran] || b.kemahiran;
+                    const kemA_min = kemahiranSPSortKey[a.kemahiran] || a.sp;
+                    const kemB_min = kemahiranSPSortKey[b.kemahiran] || b.sp;
                     
-                    // 1. Susun mengikut Kemahiran berpandukan SP terkecil
-                    const kemCmp = kemA_min.localeCompare(kemB_min, undefined, {numeric: true});
+                    const kemCmp = compareSP(kemA_min, kemB_min);
                     if (kemCmp !== 0) return kemCmp;
 
-                    // 2. Susun jenis TP mengikut kategori
                     const getTypeWeight = (col) => {
                         if (col.sp.includes('TP KESELURUHAN (PAT)')) return 4;
                         if (col.sp.includes('TP KESELURUHAN (PPT)')) return 3;
@@ -1032,8 +1051,7 @@
                     const weightB = getTypeWeight(b);
                     if (weightA !== weightB) return weightA - weightB;
 
-                    // 3. Susun SP biasa secara menaik
-                    return a.sp.localeCompare(b.sp, undefined, {numeric: true});
+                    return compareSP(a.sp, b.sp);
                 });
 
                 const rowsMap = {};
@@ -1243,21 +1261,20 @@
                                                         <td className="py-2 px-3 border border-gray-300 font-extrabold text-gray-800 uppercase text-xs align-middle">{row.studentName}</td>
                                                         {displayColumns.map(col => {
                                                             const resArr = row.results[col.sp] || [];
+                                                            const isSpecial = col.isTPKeseluruhan;
                                                             
                                                             let cellBgClass = '';
-                                                            let badgeClass = 'text-teal-700 bg-teal-100';
+                                                            if (col.sp.includes('TP KESELURUHAN (PAT)')) { cellBgClass = 'bg-indigo-50/40'; }
+                                                            else if (col.sp.includes('TP KESELURUHAN (PPT)')) { cellBgClass = 'bg-blue-50/40'; }
+                                                            else if (col.sp.includes('TP KESELURUHAN')) { cellBgClass = 'bg-green-50/40'; }
 
-                                                            if (col.sp.includes('TP KESELURUHAN (PAT)')) { cellBgClass = 'bg-indigo-50/50'; badgeClass = 'text-indigo-700 bg-indigo-100'; }
-                                                            else if (col.sp.includes('TP KESELURUHAN (PPT)')) { cellBgClass = 'bg-blue-50/50'; badgeClass = 'text-blue-700 bg-blue-100'; }
-                                                            else if (col.sp.includes('TP KESELURUHAN')) { cellBgClass = 'bg-green-50/50'; badgeClass = 'text-green-700 bg-green-100'; }
-                                                            
                                                             return (
                                                                 <td key={col.sp} className={`py-2 px-1 border border-gray-300 text-center align-middle ${cellBgClass}`}>
                                                                     {resArr.length > 0 ? (
                                                                         <div className="flex flex-col items-center justify-center gap-1.5">
                                                                             {resArr.map((res, idx) => (
-                                                                                <div key={idx} className="flex flex-col items-center">
-                                                                                    <div className={`font-black text-sm px-2 py-0.5 rounded shadow-sm border border-black/5 ${badgeClass}`}>{res.tp}</div>
+                                                                                <div key={idx} className="flex flex-col items-center w-full px-1">
+                                                                                    <div className={`font-black text-xs px-1.5 py-0.5 rounded shadow-sm border w-full text-center whitespace-nowrap ${getTPColor(res.tp)}`}>{res.tp}</div>
                                                                                     <div className="text-[9px] text-gray-500 font-bold tracking-wider leading-none mt-1">{new Date(res.tarikh).getDate()}/{new Date(res.tarikh).getMonth()+1}</div>
                                                                                 </div>
                                                                             ))}
@@ -1515,7 +1532,7 @@
                                                 <td className="py-3 px-4 border border-gray-300 text-sm font-semibold text-gray-600 whitespace-nowrap">{formatMYDate(r.tarikh)}</td>
                                                 <td className="py-3 px-4 border border-gray-300 text-sm font-black text-gray-800">{r.subjek}</td>
                                                 <td className="py-3 px-4 border border-gray-300 text-sm"><div className="font-bold text-gray-800 mb-1">{r.kandungan}</div><div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{r.kemahiran}</div></td>
-                                                <td className="py-3 px-4 border border-gray-300 text-sm font-black text-center text-teal-700 bg-teal-50/30">{r.tp}</td>
+                                                <td className={`py-3 px-4 border border-gray-300 text-sm font-black text-center align-middle ${getTPColor(r.tp)}`}>{r.tp}</td>
                                             </tr>
                                         ))}
                                     </tbody>
