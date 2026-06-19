@@ -419,10 +419,47 @@
                 if (mod === 'SP') {
                     if (!formData.selectedSyllabusId) return showToast('Sila pilih Standard Pembelajaran.', 'error');
                 } else if (mod === 'SK') {
-                    if (formData.selectedSKs.length === 0) return showToast('Sila pilih sekurang-kurangnya satu Standard Kandungan.', 'error');
-                    finalKandungan = formData.selectedSKs.join(', ');
-                    finalPembelajaran = 'TP KESELURUHAN SK';
-                    finalKemahiran = 'RUMUSAN KESELURUHAN SK';
+                    if (formData.selectedSKs.length === 0) return showToast('Sila pilih sekurang-kurangnya satu Kemahiran/ Bidang/ Tajuk.', 'error');
+                    
+                    setIsSaving(true);
+                    try {
+                        const studentsData = config.students[formData.kelas] || [];
+                        const detailedResults = Object.keys(results).map(id => {
+                            const student = studentsData.find(s => s.id === id);
+                            return { studentId: id, studentName: student ? student.name : 'Unknown', tp: results[id] || 'Belum Dinilai' };
+                        });
+
+                        // SIMPAN BERBILANG REKOD SUPAYA JADUAL TERSUSUN IKUT TAJUK
+                        const promises = formData.selectedSKs.map(sk => {
+                            const newRecord = { 
+                                ...formData, 
+                                stdKandungan: sk, 
+                                stdPembelajaran: 'TP KESELURUHAN', 
+                                kemahiran: 'RUMUSAN KESELURUHAN',
+                                results: detailedResults, 
+                                createdAt: new Date().toISOString(), 
+                                createdBy: user.name 
+                            };
+                            return fetch(GAS_URL, {
+                                method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                                body: JSON.stringify({ action: 'addAssessment', assessment: newRecord })
+                            }).then(r => r.json()).then(resData => {
+                                if(resData.success) {
+                                    newRecord.id = resData.id;
+                                    onRecordAdded(newRecord);
+                                } else throw new Error(resData.error);
+                            });
+                        });
+                        
+                        await Promise.all(promises);
+                        showToast('Semua rekod berjaya disimpan!', 'success');
+                        setFormData(prev => ({ ...prev, stdKandungan: '', stdPembelajaran: '', kemahiran: '', selectedSyllabusId: '', selectedSKs: [] }));
+                        const resetRes = {}; studentsData.forEach(s => resetRes[s.id] = '');
+                        setResults(resetRes);
+                    } catch (error) { showToast('Ralat: ' + error.message, 'error'); } 
+                    finally { setIsSaving(false); }
+                    return; // Tamatkan fungsi untuk Mod SK
+                    
                 } else if (mod === 'PPT') {
                     finalKandungan = 'PENCAPAIAN PENGGAL';
                     finalPembelajaran = 'PERTENGAHAN TAHUN (PPT)';
@@ -478,7 +515,7 @@
                         <label className="block text-sm font-extrabold text-gray-800 mb-3 uppercase tracking-wider">Pilih Mod Perekodan:</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             <button onClick={()=>handleModeChange('SP')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='SP' ? 'border-teal-500 bg-teal-50 text-teal-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-teal-300 hover:bg-teal-50/50'}`}><i className={`fas fa-book-open text-xl ${mod==='SP' ? 'text-teal-600' : 'text-gray-400'}`}></i> 1. Standard Pembelajaran</button>
-                            <button onClick={()=>handleModeChange('SK')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='SK' ? 'border-teal-500 bg-teal-50 text-teal-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-teal-300 hover:bg-teal-50/50'}`}><i className={`fas fa-layer-group text-xl ${mod==='SK' ? 'text-teal-600' : 'text-gray-400'}`}></i> 2. TP Keseluruhan (SK)</button>
+                            <button onClick={()=>handleModeChange('SK')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='SK' ? 'border-teal-500 bg-teal-50 text-teal-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-teal-300 hover:bg-teal-50/50'}`}><i className={`fas fa-layer-group text-xl ${mod==='SK' ? 'text-teal-600' : 'text-gray-400'}`}></i> 2. TP Keseluruhan (Bidang/Tajuk)</button>
                             <button onClick={()=>handleModeChange('PPT')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='PPT' ? 'border-blue-500 bg-blue-50 text-blue-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:bg-blue-50/50'}`}><i className={`fas fa-calendar-alt text-xl ${mod==='PPT' ? 'text-blue-600' : 'text-gray-400'}`}></i> 3. Pertengahan Tahun (PPT)</button>
                             <button onClick={()=>handleModeChange('PAT')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='PAT' ? 'border-indigo-500 bg-indigo-50 text-indigo-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/50'}`}><i className={`fas fa-calendar-check text-xl ${mod==='PAT' ? 'text-indigo-600' : 'text-gray-400'}`}></i> 4. Akhir Tahun (PAT)</button>
                         </div>
@@ -527,7 +564,7 @@
                             {mod === 'SK' && (
                                 <div className="bg-white p-5 rounded-xl border border-teal-200 shadow-sm">
                                     <label className="block text-sm font-extrabold text-teal-800 mb-3 uppercase tracking-wider">
-                                        <i className="fas fa-check-square mr-1 text-teal-500"></i> Pilih Standard Kandungan (Boleh pilih lebih daripada satu)
+                                        <i className="fas fa-check-square mr-1 text-teal-500"></i> Pilih Kemahiran/ Bidang/ Tajuk (Boleh pilih lebih daripada satu)
                                     </label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto pr-2">
                                         {uniqueSKs.length > 0 ? uniqueSKs.map(sk => (
@@ -920,37 +957,55 @@
         const DashboardAnalisis = ({ records, config }) => {
             const [filterClass, setFilterClass] = useState(config.classes[0] || '');
             const [filterSubject, setFilterSubject] = useState(config.subjects[0] || '');
-            const [viewMode, setViewMode] = useState('PBD');
-            
-            // FUNGSI BAHARU: TAPISAN TARIKH
             const [startDate, setStartDate] = useState('');
             const [endDate, setEndDate] = useState('');
+            const [viewMode, setViewMode] = useState('PBD');
 
             const totalStudents = useMemo(() => config.students[filterClass]?.length || 0, [config, filterClass]);
             
-            // KEMAS KINI: Kira total records mengikut tapisan tarikh
-            const totalRecords = useMemo(() => records.filter(r => {
-                let dateValid = true;
-                if (startDate) dateValid = dateValid && r.tarikh >= startDate;
-                if (endDate) dateValid = dateValid && r.tarikh <= endDate;
-                return r.kelas === filterClass && r.subjek === filterSubject && dateValid;
-            }).length, [records, filterClass, filterSubject, startDate, endDate]);
+            const passDateFilter = (recDateStr) => {
+                if (!startDate && !endDate) return true;
+                const rDate = new Date(recDateStr);
+                rDate.setHours(0,0,0,0);
+                
+                if (startDate) {
+                    const sDate = new Date(startDate);
+                    sDate.setHours(0,0,0,0);
+                    if (rDate < sDate) return false;
+                }
+                if (endDate) {
+                    const eDate = new Date(endDate);
+                    eDate.setHours(0,0,0,0);
+                    if (rDate > eDate) return false;
+                }
+                return true;
+            };
+
+            const totalRecords = useMemo(() => records.filter(r => r.kelas === filterClass && r.subjek === filterSubject && passDateFilter(r.tarikh)).length, [records, filterClass, filterSubject, startDate, endDate]);
 
             const matrixDataPBD = useMemo(() => {
                 let filtered = [];
                 records.forEach(r => {
-                    if(r.stdKandungan !== 'MARKAH UJIAN') {
+                    if(r.stdKandungan !== 'MARKAH UJIAN' && passDateFilter(r.tarikh)) {
                         r.results.forEach(res => {
                             if (res.tp && res.tp !== 'Belum Dinilai' && res.tp !== '') {
                                 if (r.kelas === filterClass && r.subjek === filterSubject) {
-                                    // KEMAS KINI: Logik Tarikh
-                                    let dateValid = true;
-                                    if (startDate) dateValid = dateValid && r.tarikh >= startDate;
-                                    if (endDate) dateValid = dateValid && r.tarikh <= endDate;
-                                    
-                                    if (dateValid) {
-                                        filtered.push({ tarikh: r.tarikh, stdKandungan: r.stdKandungan, stdPembelajaran: r.stdPembelajaran, kemahiran: r.kemahiran, studentName: res.studentName, tp: res.tp });
+                                    // BINA COLKEY KHUSUS UNTUK SETIAP TP KESELURUHAN SK
+                                    let colKey = r.stdPembelajaran;
+                                    const isTPKeseluruhan = (colKey === 'TP KESELURUHAN SK' || colKey === 'TP KESELURUHAN');
+                                    if (isTPKeseluruhan) {
+                                        colKey = `TP KESELURUHAN ${r.stdKandungan}`;
                                     }
+                                    
+                                    filtered.push({ 
+                                        tarikh: r.tarikh, 
+                                        stdKandungan: r.stdKandungan, 
+                                        stdPembelajaran: colKey, 
+                                        kemahiran: r.kemahiran, 
+                                        studentName: res.studentName, 
+                                        tp: res.tp,
+                                        originalSP: r.stdPembelajaran 
+                                    });
                                 }
                             }
                         });
@@ -958,12 +1013,32 @@
                 });
 
                 const colsMap = {};
-                filtered.forEach(item => { if (!colsMap[item.stdPembelajaran]) colsMap[item.stdPembelajaran] = { sp: item.stdPembelajaran, kemahiran: item.kemahiran }; });
+                filtered.forEach(item => { 
+                    if (!colsMap[item.stdPembelajaran]) {
+                        colsMap[item.stdPembelajaran] = { 
+                            sp: item.stdPembelajaran, 
+                            kemahiran: item.kemahiran,
+                            isTPKeseluruhan: item.originalSP === 'TP KESELURUHAN SK' || item.originalSP === 'TP KESELURUHAN',
+                            skAssoc: item.stdKandungan,
+                            isPPT_PAT: item.originalSP === 'PERTENGAHAN TAHUN (PPT)' || item.originalSP === 'AKHIR TAHUN (PAT)'
+                        };
+                    } 
+                });
+                
                 const columns = Object.values(colsMap).sort((a, b) => {
-                    const special = ['TP KESELURUEM', 'TP KESELURUHAN SK', 'PERTENGAHAN TAHUN (PPT)', 'AKHIR TAHUN (PAT)'];
-                    const aSpec = special.indexOf(a.sp); const bSpec = special.indexOf(b.sp);
-                    if (aSpec !== -1 && bSpec !== -1) return aSpec - bSpec;
-                    if (aSpec !== -1) return 1; if (bSpec !== -1) return -1;
+                    // 1. Asingkan PPT dan PAT di hujung
+                    if (a.isPPT_PAT && !b.isPPT_PAT) return 1;
+                    if (!a.isPPT_PAT && b.isPPT_PAT) return -1;
+                    if (a.isPPT_PAT && b.isPPT_PAT) return a.sp.localeCompare(b.sp);
+
+                    // 2. Kumpulan ikut SK / Bidang
+                    const skCompare = a.skAssoc.localeCompare(b.skAssoc, undefined, {numeric: true});
+                    if (skCompare !== 0) return skCompare;
+
+                    // 3. Susun TP Keseluruhan di penghujung SP dalam SK tersebut
+                    if (a.isTPKeseluruhan && !b.isTPKeseluruhan) return 1;
+                    if (!a.isTPKeseluruhan && b.isTPKeseluruhan) return -1;
+                    
                     return a.sp.localeCompare(b.sp, undefined, {numeric: true});
                 });
 
@@ -981,6 +1056,7 @@
                     if (b.stdKandungan.includes('PENGGAL')) return -1;
                     return a.stdKandungan.localeCompare(b.stdKandungan, undefined, {numeric: true});
                 });
+                
                 return { columns, rows };
             }, [records, filterClass, filterSubject, startDate, endDate]);
 
@@ -1022,7 +1098,7 @@
 
             const downloadPDF = () => {
                 const element = document.getElementById(viewMode === 'PBD' ? 'dashboard-print-area' : 'sumatif-print-area');
-                const title = viewMode === 'PBD' ? 'Laporan_Matriks_PBD' : 'Laporan_Markah_Ujian';
+                const title = viewMode === 'PBD' ? 'Rekod_Perkembangan_Murid' : 'Laporan_Markah_Ujian';
                 const dateRangeStr = (startDate || endDate) ? `_${startDate||'Awal'}_${endDate||'Kini'}` : '';
                 const opt = {
                     margin: [10, 10, 10, 10], filename: `${title}_${filterClass}${dateRangeStr}.pdf`,
@@ -1096,15 +1172,10 @@
 
                         {viewMode === 'PBD' && (
                             <div id="dashboard-print-area" className="w-full overflow-x-auto fade-in bg-white p-6 rounded-xl">
-                                <div className="mb-8 border-b-2 border-gray-300 pb-4 pt-2">
-                                    <table className="text-sm font-bold text-gray-800">
-                                        <tbody>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Laporan Analisis PBD</td></tr>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
-                                            <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
-                                            {(startDate || endDate) && <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {startDate ? formatMYDate(startDate) : 'Awal Tahun'} hingga {endDate ? formatMYDate(endDate) : 'Kini'}</td></tr>}
-                                        </tbody>
-                                    </table>
+                                <div className="mb-8 text-center border-b-2 border-gray-300 pb-4 pt-4">
+                                    <h1 className="text-2xl font-black uppercase text-gray-900 tracking-wider">Rekod Perkembangan Murid</h1>
+                                    <p className="text-gray-600 font-bold text-sm mt-1 mb-1">Kelas: {filterClass} &nbsp;|&nbsp; Mata Pelajaran: {filterSubject}</p>
+                                    <p className="inline-block bg-teal-100 text-teal-800 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-widest">{headerDateText}</p>
                                 </div>
 
                                 {matrixDataPBD.rows.length > 0 ? (
@@ -1113,11 +1184,11 @@
                                             <thead className="bg-gray-100 text-gray-800 border-b-2 border-gray-300">
                                                 <tr>
                                                     <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-48 bg-gray-200">Nama Murid</th>
-                                                    <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-64 bg-gray-200">Standard Kandungan</th>
+                                                    <th className="py-3 px-3 border border-gray-300 font-extrabold uppercase w-64 bg-gray-200">Kemahiran / Bidang / Tajuk</th>
                                                     {matrixDataPBD.columns.map(col => (
-                                                        <th key={col.sp} className={`py-3 px-2 border border-gray-300 font-bold text-center w-24 align-top ${['TP KESELURUHAN SK', 'PERTENGAHAN TAHUN (PPT)', 'AKHIR TAHUN (PAT)'].includes(col.sp) ? 'bg-blue-100 text-blue-900 border-blue-200' : 'bg-gray-50'}`}>
-                                                            <div className="text-sm font-black">{col.sp}</div>
-                                                            <div className="text-[9px] text-gray-500 mt-1 uppercase font-semibold break-words mx-auto leading-tight">{col.kemahiran}</div>
+                                                        <th key={col.sp} className={`py-3 px-2 border border-gray-300 font-bold text-center w-24 align-top ${col.isTPKeseluruhan || col.isPPT_PAT ? 'bg-blue-100 text-blue-900 border-blue-200' : 'bg-gray-50'}`}>
+                                                            <div className="text-sm font-black">{col.isTPKeseluruhan ? 'TP KESELURUHAN' : col.sp}</div>
+                                                            <div className="text-[9px] text-gray-500 mt-1 uppercase font-semibold break-words mx-auto leading-tight">{col.isTPKeseluruhan ? 'RUMUSAN' : col.kemahiran}</div>
                                                         </th>
                                                     ))}
                                                 </tr>
@@ -1132,7 +1203,7 @@
                                                         </td>
                                                         {matrixDataPBD.columns.map(col => {
                                                             const res = row.results[col.sp];
-                                                            const isSpecial = ['TP KESELURUHAN SK', 'PERTENGAHAN TAHUN (PPT)', 'AKHIR TAHUN (PAT)'].includes(col.sp);
+                                                            const isSpecial = col.isTPKeseluruhan || col.isPPT_PAT;
                                                             return (
                                                                 <td key={col.sp} className={`py-2 px-1 border border-gray-300 text-center align-middle ${isSpecial ? 'bg-blue-50/50' : ''}`}>
                                                                     {res ? (
@@ -1158,7 +1229,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                ) : <div className="text-center py-16 text-gray-400 bg-gray-50 border border-gray-200 rounded-xl flex flex-col items-center"><i className="fas fa-folder-open text-4xl mb-3 text-gray-300"></i><p className="font-bold">Tiada rekod penilaian PBD dijumpai mengikut tapisan yang dipilih.</p></div>}
+                                ) : <div className="text-center py-16 text-gray-400 bg-gray-50 border border-gray-200 rounded-xl flex flex-col items-center"><i className="fas fa-calendar-times text-4xl mb-3 text-gray-300"></i><p className="font-bold">Tiada rekod PBD dijumpai dalam julat tarikh ini.</p></div>}
                             </div>
                         )}
 
@@ -1170,7 +1241,7 @@
                                             <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Tajuk</td><td className="pb-1 uppercase text-lg font-black text-gray-900">: Laporan Markah Ujian (Sumatif)</td></tr>
                                             <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Kelas</td><td className="pb-1 uppercase">: {filterClass || '-'}</td></tr>
                                             <tr><td className="pr-6 pb-1 text-gray-500 uppercase tracking-wider text-xs">Mata Pelajaran</td><td className="pb-1 uppercase">: {filterSubject || '-'}</td></tr>
-                                            {(startDate || endDate) && <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {startDate ? formatMYDate(startDate) : 'Awal Tahun'} hingga {endDate ? formatMYDate(endDate) : 'Kini'}</td></tr>}
+                                            <tr><td className="pr-6 text-gray-500 uppercase tracking-wider text-xs">Tarikh Rekod</td><td className="uppercase">: {headerDateText.replace('Tarikh: ', '')}</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
