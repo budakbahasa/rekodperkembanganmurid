@@ -115,7 +115,7 @@
             return { grade: 'F', desc: 'BELUM MENCAPAI TAHAP', color: 'bg-red-600 text-white' };
         };
 
-        const TP_OPTIONS = ["TP 1", "TP 2", "TP 3", "TP 4", "TP 5", "TP 6", "BELUM MENGUASAI", "MENGUASAI", "MENGUASAI DENGAN BIMBINGAN", "/", "X"];
+        const TP_OPTIONS = ["TP 1", "TP 2", "TP 3", "TP 4", "TP 5", "TP 6", "BELUM MENGUASAI", "MENGUASAI", "MENGUASAI DENGAN BIMBINGAN", "TH", "PEMULIHAN", "/", "X"];
 
         const Toast = ({ message, type, onClose }) => {
             useEffect(() => { const timer = setTimeout(onClose, 3000); return () => clearTimeout(timer); }, [onClose]);
@@ -460,11 +460,11 @@
                     
                 } else if (mod === 'PPT') {
                     finalKandungan = 'PENCAPAIAN PENGGAL';
-                    finalPembelajaran = 'PERTENGAHAN TAHUN (PPT)';
+                    finalPembelajaran = 'TP KESELURUHAN (PERTENGAHAN TAHUN)';
                     finalKemahiran = 'TP KESELURUHAN UMUM';
                 } else if (mod === 'PAT') {
                     finalKandungan = 'PENCAPAIAN PENGGAL';
-                    finalPembelajaran = 'AKHIR TAHUN (PAT)';
+                    finalPembelajaran = 'TP KESELURUHAN (AKHIR TAHUN)';
                     finalKemahiran = 'TP KESELURUHAN UMUM';
                 }
 
@@ -513,9 +513,9 @@
                         <label className="block text-sm font-extrabold text-gray-800 mb-3 uppercase tracking-wider">Pilih Mod Perekodan:</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             <button onClick={()=>handleModeChange('SP')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='SP' ? 'border-teal-500 bg-teal-50 text-teal-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-teal-300 hover:bg-teal-50/50'}`}><i className={`fas fa-book-open text-xl ${mod==='SP' ? 'text-teal-600' : 'text-gray-400'}`}></i> 1. Standard Pembelajaran</button>
-                            <button onClick={()=>handleModeChange('SK')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='SK' ? 'border-teal-500 bg-teal-50 text-teal-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-teal-300 hover:bg-teal-50/50'}`}><i className={`fas fa-layer-group text-xl ${mod==='SK' ? 'text-teal-600' : 'text-gray-400'}`}></i> 2. TP Keseluruhan (Kemahiran)</button>
-                            <button onClick={()=>handleModeChange('PPT')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='PPT' ? 'border-blue-500 bg-blue-50 text-blue-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:bg-blue-50/50'}`}><i className={`fas fa-calendar-alt text-xl ${mod==='PPT' ? 'text-blue-600' : 'text-gray-400'}`}></i> 3. Pertengahan Tahun (PPT)</button>
-                            <button onClick={()=>handleModeChange('PAT')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='PAT' ? 'border-indigo-500 bg-indigo-50 text-indigo-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/50'}`}><i className={`fas fa-calendar-check text-xl ${mod==='PAT' ? 'text-indigo-600' : 'text-gray-400'}`}></i> 4. Akhir Tahun (PAT)</button>
+                            <button onClick={()=>handleModeChange('SK')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='SK' ? 'border-teal-500 bg-teal-50 text-teal-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-teal-300 hover:bg-teal-50/50'}`}><i className={`fas fa-layer-group text-xl ${mod==='SK' ? 'text-teal-600' : 'text-gray-400'}`}></i> 2. TP Keseluruhan (SK)</button>
+                            <button onClick={()=>handleModeChange('PPT')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='PPT' ? 'border-blue-500 bg-blue-50 text-blue-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:bg-blue-50/50'}`}><i className={`fas fa-calendar-alt text-xl ${mod==='PPT' ? 'text-blue-600' : 'text-gray-400'}`}></i> 3. TP Keseluruhan (PPT)</button>
+                            <button onClick={()=>handleModeChange('PAT')} className={`py-4 px-4 rounded-xl font-bold text-sm border-2 transition-all flex flex-col items-center justify-center gap-2 ${mod==='PAT' ? 'border-indigo-500 bg-indigo-50 text-indigo-800 shadow-md transform -translate-y-1' : 'border-gray-200 bg-white text-gray-500 hover:border-indigo-300 hover:bg-indigo-50/50'}`}><i className={`fas fa-calendar-check text-xl ${mod==='PAT' ? 'text-indigo-600' : 'text-gray-400'}`}></i> 4. TP Keseluruhan (PAT)</button>
                         </div>
                     </div>
 
@@ -583,7 +583,7 @@
                             {(mod === 'PPT' || mod === 'PAT') && (
                                 <div className={`p-6 rounded-2xl font-bold text-center text-xl shadow-inner ${mod === 'PPT' ? 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-900 border border-blue-200' : 'bg-gradient-to-r from-indigo-100 to-indigo-50 text-indigo-900 border border-indigo-200'}`}>
                                     <i className={`fas fa-trophy mr-2 text-2xl ${mod === 'PPT' ? 'text-blue-500' : 'text-indigo-500'}`}></i>
-                                    REKOD PENGGAL: {mod === 'PPT' ? 'PERTENGAHAN TAHUN (PPT)' : 'AKHIR TAHUN (PAT)'}
+                                    REKOD PENGGAL: {mod === 'PPT' ? 'TP KESELURUHAN (PERTENGAHAN TAHUN)' : 'TP KESELURUHAN (AKHIR TAHUN)'}
                                     <p className="text-sm font-medium mt-2 opacity-80">Sila masukkan TP keseluruhan umum di bawah</p>
                                 </div>
                             )}
@@ -1002,11 +1002,13 @@
                 const colsMap = {};
                 filtered.forEach(item => { 
                     if (!colsMap[item.stdPembelajaran]) {
+                        const isPPT_PAT = item.stdPembelajaran.includes('PERTENGAHAN TAHUN') || item.stdPembelajaran.includes('AKHIR TAHUN');
+                        const isTPKeseluruhan = item.stdPembelajaran.includes('TP KESELURUHAN') && !isPPT_PAT;
                         colsMap[item.stdPembelajaran] = { 
                             sp: item.stdPembelajaran, 
                             kemahiran: item.kemahiran,
-                            isTPKeseluruhan: item.stdPembelajaran.includes('TP KESELURUHAN'),
-                            isPPT_PAT: item.stdPembelajaran === 'PERTENGAHAN TAHUN (PPT)' || item.stdPembelajaran === 'AKHIR TAHUN (PAT)'
+                            isTPKeseluruhan: isTPKeseluruhan,
+                            isPPT_PAT: isPPT_PAT
                         }; 
                     } 
                 });
