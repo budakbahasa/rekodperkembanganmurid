@@ -1337,21 +1337,33 @@
                                                 <thead className="bg-gray-100 text-gray-900 border-b-2 border-gray-300">
                                                     <tr>
                                                         <th className="py-2 px-3 border border-gray-300 font-extrabold w-48 bg-gray-200">Kod / Tajuk</th>
-                                                        <th className="py-2 px-3 border border-gray-300 font-extrabold bg-gray-200">Keterangan Kemahiran</th>
+                                                        <th className="py-2 px-3 border border-gray-300 font-extrabold bg-gray-200">Keterangan Standard Pembelajaran / Kemahiran</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {displayColumns.map((col, idx) => {
                                                         let titleText = col.sp;
-                                                        if (col.sp.includes('TP KESELURUHAN (PAT)')) titleText = 'TP (PAT)';
-                                                        else if (col.sp.includes('TP KESELURUHAN (PPT)')) titleText = 'TP (PPT)';
-                                                        else if (col.sp.includes('TP KESELURUHAN')) titleText = 'TP (SEMASA)';
-                                                        else titleText = col.sp.split(' ')[0];
+                                                        let descriptionText = col.sp;
+                                                        
+                                                        if (col.sp.includes('TP KESELURUHAN (PAT)')) {
+                                                            titleText = 'TP (PAT)';
+                                                            descriptionText = `RUMUSAN AKHIR TAHUN - ${col.kemahiran}`;
+                                                        } else if (col.sp.includes('TP KESELURUHAN (PPT)')) {
+                                                            titleText = 'TP (PPT)';
+                                                            descriptionText = `RUMUSAN PERTENGAHAN TAHUN - ${col.kemahiran}`;
+                                                        } else if (col.sp.includes('TP KESELURUHAN')) {
+                                                            titleText = 'TP (SEMASA)';
+                                                            descriptionText = `RUMUSAN KESELURUHAN - ${col.kemahiran}`;
+                                                        } else {
+                                                            titleText = col.sp.split(' ')[0];
+                                                            // Kekalkan nama penuh SP yang didaftarkan cikgu
+                                                            descriptionText = col.sp; 
+                                                        }
                                                         
                                                         return (
                                                             <tr key={idx} className="hover:bg-gray-50">
                                                                 <td className="py-2 px-3 border border-gray-300 font-extrabold text-gray-900 whitespace-nowrap">{titleText}</td>
-                                                                <td className="py-2 px-3 border border-gray-300 font-bold text-gray-800 uppercase">{col.kemahiran}</td>
+                                                                <td className="py-2 px-3 border border-gray-300 font-bold text-gray-800 uppercase">{descriptionText}</td>
                                                             </tr>
                                                         )
                                                     })}
