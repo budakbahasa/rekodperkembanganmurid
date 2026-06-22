@@ -1110,20 +1110,19 @@
 
             const downloadPDF = () => {
                 const element = document.getElementById(viewMode === 'PBD' ? 'dashboard-print-area' : 'sumatif-print-area');
-                element.classList.add('force-black-print'); // Tambah kelas hitam pekat
+                element.classList.add('force-black-print'); 
 
                 const title = viewMode === 'PBD' ? 'Rekod_Perkembangan_Murid' : 'Laporan_Markah_Ujian';
                 const opt = {
                     margin: [10, 10, 10, 10], filename: `${title}_${filterClass}_${getMYDate()}.pdf`,
                     image: { type: 'jpeg', quality: 1.0 },
-                    html2canvas: { scale: 3, useCORS: true, ignoreElements: (n) => n.classList.contains('no-print') }, // Scale 3 untuk resolusi super tinggi
+                    html2canvas: { scale: 3, useCORS: true, ignoreElements: (n) => n.classList.contains('no-print') }, 
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
                 };
                 
-                // Guna setTimeout untuk pastikan browser render warna hitam sebelum snap PDF
                 setTimeout(() => {
                     window.html2pdf().set(opt).from(element).save().then(() => {
-                        element.classList.remove('force-black-print'); // Buang semula selepas siap
+                        element.classList.remove('force-black-print'); 
                     });
                 }, 150);
             };
@@ -1279,8 +1278,7 @@
                                                         
                                                         return (
                                                         <th key={col.sp} className={`py-3 px-2 border border-gray-300 font-bold text-center w-24 align-top ${headerBg}`}>
-                                                            <div className="text-sm font-black">{titleText}</div>
-                                                            <div className="text-[10px] mt-1 uppercase font-bold break-words mx-auto leading-tight text-gray-900">{col.kemahiran}</div>
+                                                            <div className="text-sm font-black text-center">{titleText}</div>
                                                         </th>
                                                     )})}
                                                 </tr>
@@ -1329,11 +1327,38 @@
                                             </tbody>
                                         </table>
 
-                                        <div className="mt-8 text-xs font-bold text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-200 inline-block">
+                                        <div className="mt-8 mb-4 break-inside-avoid">
+                                            <h4 className="font-extrabold text-gray-900 text-sm mb-2 uppercase border-l-4 border-teal-500 pl-2">Petunjuk Standard Pembelajaran</h4>
+                                            <table className="w-full text-left text-xs border-collapse border border-gray-300 shadow-sm rounded-lg overflow-hidden bg-white">
+                                                <thead className="bg-gray-100 text-gray-900 border-b-2 border-gray-300">
+                                                    <tr>
+                                                        <th className="py-2 px-3 border border-gray-300 font-extrabold w-48 bg-gray-200">Kod / Tajuk</th>
+                                                        <th className="py-2 px-3 border border-gray-300 font-extrabold bg-gray-200">Keterangan Kemahiran</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {displayColumns.map((col, idx) => {
+                                                        let titleText = col.sp;
+                                                        if (col.sp.includes('TP KESELURUHAN (PAT)')) titleText = 'TP (PAT)';
+                                                        else if (col.sp.includes('TP KESELURUHAN (PPT)')) titleText = 'TP (PPT)';
+                                                        else if (col.sp.includes('TP KESELURUHAN')) titleText = 'TP (SEMASA)';
+                                                        
+                                                        return (
+                                                            <tr key={idx} className="hover:bg-gray-50">
+                                                                <td className="py-2 px-3 border border-gray-300 font-extrabold text-gray-900 whitespace-nowrap">{titleText}</td>
+                                                                <td className="py-2 px-3 border border-gray-300 font-bold text-gray-800 uppercase">{col.kemahiran}</td>
+                                                            </tr>
+                                                        )
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div className="mt-4 text-xs font-bold text-gray-900 bg-gray-50 p-3 rounded-lg border border-gray-200 inline-block break-inside-avoid">
                                             <i className="fas fa-info-circle mr-1"></i> <span className="text-gray-900">PETUNJUK KESELURUHAN:</span> <strong className="text-red-700">BM</strong> (Belum Menguasai) &nbsp;|&nbsp; <strong className="text-amber-700">MDB</strong> (Menguasai Dengan Bimbingan) &nbsp;|&nbsp; <strong className="text-emerald-700">M</strong> (Menguasai)
                                         </div>
                                         
-                                        <div className="mt-16 mb-8 flex justify-end w-full pr-12">
+                                        <div className="mt-16 mb-8 flex justify-end w-full pr-12 break-inside-avoid">
                                             <div className="text-center">
                                                 <p className="mb-12 font-bold text-gray-900 text-sm">Disediakan oleh,</p>
                                                 <p className="italic text-xl mb-1 text-gray-900 font-serif">amirul</p>
@@ -1450,12 +1475,12 @@
             const downloadPDF = () => {
                 if(!studentInfo) return;
                 const element = document.getElementById('slip-print-content');
-                element.classList.add('force-black-print'); // Paksa tulisan hitam
+                element.classList.add('force-black-print');
 
                 const opt = {
                     margin: [15, 15, 15, 15], filename: `Slip_${studentInfo.name.replace(/\s+/g, '_')}_${getMYDate()}.pdf`,
                     image: { type: 'jpeg', quality: 1.0 }, 
-                    html2canvas: { scale: 3, useCORS: true }, // Resolusi HD
+                    html2canvas: { scale: 3, useCORS: true },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
                 
@@ -1552,8 +1577,15 @@
         };
 
         const App = () => {
-            const [user, setUser] = useState(null);
-            const [activeTab, setActiveTab] = useState('dashboard');
+            const [user, setUser] = useState(() => {
+                try {
+                    const savedUser = localStorage.getItem('sistemPbdUser');
+                    return savedUser ? JSON.parse(savedUser) : null;
+                } catch { return null; }
+            });
+            const [activeTab, setActiveTab] = useState(() => {
+                return localStorage.getItem('sistemPbdTab') || 'dashboard';
+            });
             const [toast, setToast] = useState(null);
             const [records, setRecords] = useState([]);
             const [config, setConfig] = useState(null);
@@ -1574,6 +1606,16 @@
                 fetchGASData();
             }, []);
 
+            // Auto-save State bila ada perubahan
+            useEffect(() => {
+                if (user) localStorage.setItem('sistemPbdUser', JSON.stringify(user));
+                else localStorage.removeItem('sistemPbdUser');
+            }, [user]);
+
+            useEffect(() => {
+                if (activeTab) localStorage.setItem('sistemPbdTab', activeTab);
+            }, [activeTab]);
+
             const showToast = (message, type = 'info') => setToast({ message, type });
             const handleUpdateConfig = async (newConfig) => {
                 try {
@@ -1585,6 +1627,12 @@
             const handleRecordUpdated = (updatedRecord) => setRecords(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
             const handleRecordDeleted = (id) => setRecords(prev => prev.filter(r => r.id !== id));
 
+            const handleLogout = () => {
+                localStorage.removeItem('sistemPbdUser');
+                localStorage.removeItem('sistemPbdTab');
+                window.location.reload();
+            };
+
             if (loadingData) return (
                 <div className="min-h-screen flex items-center justify-center bg-teal-50 flex-col gap-6 text-primary">
                     <div className="relative w-20 h-20">
@@ -1595,7 +1643,12 @@
                 </div>
             );
             
-            if (!user) return <LoginScreen onLogin={(userData) => { setUser(userData); setActiveTab(userData.role === 'admin' ? 'form' : 'dashboard'); showToast(`Selamat datang!`, 'success'); }} />;
+            if (!user) return <LoginScreen onLogin={(userData) => { 
+                setUser(userData); 
+                const savedTab = localStorage.getItem('sistemPbdTab');
+                if(!savedTab || savedTab === 'undefined') setActiveTab(userData.role === 'admin' ? 'form' : 'dashboard'); 
+                showToast(`Selamat datang!`, 'success'); 
+            }} />;
 
             return (
                 <div className="flex h-screen overflow-hidden bg-gray-100">
@@ -1634,7 +1687,7 @@
                                 <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-lg shadow-inner text-white font-bold"><i className="fas fa-user-circle"></i></div>
                                 <div className="overflow-hidden"><p className="text-sm font-bold truncate text-white">{user.name}</p><p className="text-[10px] text-emerald-400 flex items-center gap-1 font-extrabold tracking-wider uppercase"><span className="w-2 h-2 rounded-full bg-emerald-500 block animate-pulse"></span> Dalam Talian</p></div>
                             </div>
-                            <button onClick={() => window.location.reload()} className="w-full text-center text-sm text-red-200 hover:text-white hover:bg-red-500/80 py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-bold border border-red-500/30 hover:border-transparent"><i className="fas fa-sign-out-alt"></i> Log Keluar Sistem</button>
+                            <button onClick={handleLogout} className="w-full text-center text-sm text-red-200 hover:text-white hover:bg-red-500/80 py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-bold border border-red-500/30 hover:border-transparent"><i className="fas fa-sign-out-alt"></i> Log Keluar Sistem</button>
                         </div>
                     </div>
 
